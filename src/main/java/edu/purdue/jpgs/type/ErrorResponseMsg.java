@@ -12,7 +12,7 @@ public class ErrorResponseMsg {
     public final byte type;
     public final String message;
 
-    ErrorResponseMsg(char type, String message) {
+    public ErrorResponseMsg(char type, String message) {
         this.type = (byte) type;
         this.message = message;
     }

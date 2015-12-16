@@ -33,7 +33,7 @@ public class IntegrationTest {
                 try {
                     return new DummyConnection(s) {
                         @Override
-                        protected void StartupMessage(int protocolVersion, Map<String, String> parameters) throws IOException, PgProtocolException {
+                        protected void StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
                             assertThat(parameters, hasEntry("user", "fred"));
                             assertThat(parameters, hasEntry("database", "test"));
                             AuthenticationOk();
