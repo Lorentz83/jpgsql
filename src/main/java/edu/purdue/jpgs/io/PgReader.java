@@ -9,7 +9,7 @@ import java.util.List;
  *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
-public class PgReader implements AutoCloseable {
+public class PgReader {
 
     private final RawReader _in;
     private int _size = 0;
@@ -81,15 +81,11 @@ public class PgReader implements AutoCloseable {
         return ret;
     }
 
-    public void checkSize() throws PgProtocolException {
+    public void checkAndReset() throws PgProtocolException {
         if (_size != 0) {
             throw new PgProtocolException("protocol connection out of sync " + _size + " bytes");
         }
-    }
-
-    @Override
-    public void close() throws PgProtocolException {
-        checkSize();
+        _size = 0;
     }
 
     private void decreaseSize(int bytes) throws PgProtocolException {
@@ -104,7 +100,9 @@ public class PgReader implements AutoCloseable {
 
     public String readString() throws PgProtocolException {
         try {
-            return _in.readString(_size);
+            String str = _in.readString();
+            _size -= str.length() + 1; //TODO this is not true in Unicode
+            return str;
         } catch (IOException ex) {
             throw new PgProtocolException(ex);
         }
@@ -121,4 +119,5 @@ public class PgReader implements AutoCloseable {
         }
         return ret;
     }
+
 }

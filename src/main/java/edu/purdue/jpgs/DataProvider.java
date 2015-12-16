@@ -9,43 +9,30 @@ import java.util.List;
  */
 public interface DataProvider {
 
-    public boolean setUser(String _user);
+    public boolean setUser(String user);
 
-    public void setDatabase(String database);
+    public boolean setDatabase(String database);
 
     public boolean setPassword(String password);
 
     public QueryResult getResult(String query);
 
-    public static class QueryResult {
-
-        String getRowCount() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
-
-        String getErrorMessage() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
-
-        Iterable<List<DataCellMsg>> getRows() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
+    public interface QueryResult {
 
         public enum Type {
 
             CREATE, DELETE, INSERT, UPDATE, SELECT, ERROR
         };
 
-        Type getType() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
+        int getRowCount();
 
-        public QueryResult() {
-        }
+        String getErrorMessage();
 
-        List<String> getHeader() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
+        Iterable<List<DataCellMsg>> getRows();
+
+        Type getType();
+
+        List<String> getHeader();
     }
 
 }

@@ -79,14 +79,13 @@ public abstract class BaseConnection {
                 parameters.put(parList.get(n), parList.get(n + 1));
             }
 
-            StartupMessage(version, parameters);
-            if (!authenticated) {
+            if (StartupMessage(version, parameters) && !authenticated) {
                 char passwordRequest = _rawReader.readByte();
                 if (passwordRequest != 'p') {
                     throw new PgProtocolException("expected password");
                 }
-                int len = _rawReader.readInt32();
-                PasswordMessage(_rawReader.readString(len - 4));
+                int len = _rawReader.readInt32(); //TODO check size
+                PasswordMessage(_rawReader.readString());
             }
         } catch (IOException ex) {
             throw new PgProtocolException(ex);
@@ -382,13 +381,15 @@ public abstract class BaseConnection {
      * method. If AuthenticationOk is called, no authentication is required and
      * the protocol exits the Start-up phase.
      *
+     * @return false if the server wants close the connection without checking
+     * the password.
      * @param protocolVersion the client protocol version (supported only
      * 196608)
-     * @parameters a map containing the additional informations provided by the
-     * client. "user" is required and contains the user name; "database" is
-     * optional and defaults to the user name.
+     * @param parameters a map containing the additional informations provided
+     * by the client. "user" is required and contains the user name; "database"
+     * is optional and defaults to the user name.
      */
-    protected abstract void StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException;
+    protected abstract boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException;
 
     /**
      * Invoked when the client provides a password. This method mast call
@@ -417,7 +418,7 @@ public abstract class BaseConnection {
 
     protected abstract void CopyFail(String errorMessage) throws PgProtocolException;
 
-    protected abstract void Describe(byte what, String name) throws PgProtocolException;
+    protected abstract void Describe(char what, String name) throws PgProtocolException;
 
     protected abstract void Execute(String portalName, int manRows) throws PgProtocolException;
 
@@ -444,14 +445,14 @@ public abstract class BaseConnection {
      * Starts the protocol loop.
      */
     public boolean run() throws PgProtocolException {
-        protocolStartUp();
-        if (!authenticated) {
-            LOGGER.log(Level.WARNING, "user not authenticated, closing connection");
-            return false;
-        }
-        ReadyForQuery('I');
-        for (;;) {
-            try (PgReader reader = new PgReader(_rawReader)) {
+        try {
+            protocolStartUp();
+            if (!authenticated) {
+                LOGGER.log(Level.WARNING, "user not authenticated, closing connection");
+                return false;
+            }
+            ReadyForQuery('I');
+            for (PgReader reader = new PgReader(_rawReader);; reader.checkAndReset()) {
                 char command = reader.readCommand();
 
                 switch (command) {
@@ -496,7 +497,7 @@ public abstract class BaseConnection {
                         break;
                     }
                     case 'D': {
-                        byte what = reader.readInt8();
+                        char what = reader.readByte();
                         Describe(what, reader.readString());
                         break;
                     }
@@ -546,7 +547,14 @@ public abstract class BaseConnection {
                         LOGGER.log(Level.SEVERE, "unknown command {0}", command);
                         throw new PgProtocolException("unknown command " + command);
                 }
+
             }
+        } catch (PgProtocolException ex) {
+            try {
+                _socket.close();
+            } catch (IOException ignoreme) {
+            }
+            throw ex;
         }
     }
 

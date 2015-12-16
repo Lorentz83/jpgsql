@@ -20,8 +20,9 @@ public class DummyConnection extends BaseConnection {
     }
 
     @Override
-    protected void StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
+    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
         fail("StartupMessage should not be called");
+        return false;
     }
 
     @Override
@@ -50,7 +51,7 @@ public class DummyConnection extends BaseConnection {
     }
 
     @Override
-    protected void Describe(byte what, String name) throws PgProtocolException {
+    protected void Describe(char what, String name) throws PgProtocolException {
         fail("Describe should not be called");
     }
 

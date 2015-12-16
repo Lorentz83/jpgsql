@@ -8,6 +8,7 @@ import static edu.purdue.jpgs.type.ErrorResponseMsg.makeError;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,40 +20,49 @@ public class SimpleConnection extends BaseConnection {
 
     protected String _database;
     private final int _processId, _secretKey;
-    private DataProvider _provider;
-    Map<String, String> _preparedStatements;
-    Map<String, String> _portals;
+    private final DataProvider _provider;
+    private final Map<String, String> _preparedStatements;
+    private final Map<String, String> _portals;
 
     public SimpleConnection(Socket socket, DataProvider provider, int pid) throws IOException {
         super(socket);
         _processId = pid;
         _secretKey = (int) (Math.random() * Integer.MAX_VALUE);
+        _provider = provider;
+        _preparedStatements = new HashMap<>();
+        _portals = new HashMap<>();
     }
 
     @Override
-    protected void StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
+    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
         String user = parameters.get("user");
         if (user == null) {
             throw new PgProtocolException("Missing username");
         }
-        String database = parameters.get("database");
-        if (database == null) {
-            database = user;
-            _provider.setDatabase(database);
+        _database = parameters.get("database");
+        if (_database == null) {
+            _database = user;
         }
-
         if (_provider.setUser(user)) {
+            if (!_provider.setDatabase(_database)) {
+                ErrorResponse(makeError("3D000", String.format("database \"%s\" does not exist", _database)));
+                return false;
+            }
             AuthenticationOk();
             BackendKeyData(_processId, _secretKey);
         } else {
             AuthenticationCleartextPassword();
         }
+        return true;
     }
 
     @Override
     protected void PasswordMessage(String password) throws PgProtocolException {
         if (_provider.setPassword(password)) {
             AuthenticationOk();
+            if (!_provider.setDatabase(_database)) {
+                ErrorResponse(makeError("3D000", String.format("database \"%s\" does not exist", _database)));
+            }
             BackendKeyData(_processId, _secretKey);
         }
     }
@@ -114,7 +124,7 @@ public class SimpleConnection extends BaseConnection {
         if (portalName.equals("")) {
             _portals.remove(""); //destroy the unnamed portal.
         }
-        if (_portals.containsKey(portalName)) {
+        if (!_portals.containsKey(portalName)) {
             _portals.put(portalName, realQuery);
             BindComplete();
         } else {
@@ -155,9 +165,13 @@ public class SimpleConnection extends BaseConnection {
     protected void Execute(String portalName, int manRows) throws PgProtocolException {
         //maxRows == 0 means fetch them all
         String query = _portals.get(portalName);
-        if (!respondToEmptyQuery(query)) {
-            DataProvider.QueryResult table = _provider.getResult(query);
-            sendQueryResult(table, manRows);
+        if (query == null) {
+            ErrorResponse(makeError("42602", "unknown portal name"));
+        } else {
+            if (!respondToEmptyQuery(query)) {
+                DataProvider.QueryResult table = _provider.getResult(query);
+                sendQueryResult(table, manRows);
+            }
         }
         /**
          * @todo currently the PortalSuspended message is not sent, because once
@@ -251,8 +265,24 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void Describe(byte what, String name) throws PgProtocolException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    protected void Describe(char what, String name) throws PgProtocolException {
+        switch (what) {
+            case 'S': // prepared statement
+                ErrorResponse(makeError("0A000", "unsupported feature: describe prepared statement"));
+                break;
+            case 'P': // portal
+                String q = _portals.get(name);
+                if (q == null) {
+                    ErrorResponse(makeError("42602", "unknown portal name"));
+                } else {
+                    DataProvider.QueryResult table = _provider.getResult(q);
+                    RowDescription(getTableHeader(table.getHeader()));
+                }
+                break;
+            default:
+                ErrorResponse(makeError("unknown command"));
+                throw new PgProtocolException("Unknown message 'Describe " + what + "'");
+        }
     }
 
     @Override

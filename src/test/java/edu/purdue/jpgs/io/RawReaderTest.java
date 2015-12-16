@@ -92,7 +92,7 @@ public class RawReaderTest {
     public void readString() throws Exception {
         ByteArrayInputStream is = new ByteArrayInputStream(getByteArray('q', 'w', 'e', 'r', '\0'));
         RawReader reader = new RawReader(is);
-        assertThat(reader.readString(5), is("qwer"));
+        assertThat(reader.readString(), is("qwer"));
     }
 
     @Test
@@ -100,7 +100,7 @@ public class RawReaderTest {
         ByteArrayInputStream is = new ByteArrayInputStream(getByteArray('q', 'w'));
         RawReader reader = new RawReader(is);
         try {
-            reader.readString(2);
+            reader.readString();
             fail("missing exception");
         } catch (IOException ex) {
         }
@@ -153,7 +153,7 @@ public class RawReaderTest {
         } catch (IOException ex) {
         }
         try {
-            reader.readString(1);
+            reader.readString();
             fail("missing exception");
         } catch (IOException ex) {
         }

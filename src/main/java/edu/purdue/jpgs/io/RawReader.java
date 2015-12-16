@@ -34,15 +34,13 @@ public class RawReader {
         return (char) read();
     }
 
-    public String readString(int len) throws IOException {
-        byte[] buf = new byte[len];
-        if (_in.read(buf) != len) {
-            throw new IOException("missing bytes from the stream");
+    public String readString() throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int c;
+        for (c = read(); c != 0; c = _in.read()) {
+            sb.append((char) c); //TODO add unicode support.
         }
-        if (buf[len - 1] != '\0') {
-            throw new IOException("attempting to read a non null terminated string");
-        }
-        return new String(Arrays.copyOf(buf, len - 1));
+        return sb.toString();
     }
 
     public List<String> readStringList(int len) throws IOException {
