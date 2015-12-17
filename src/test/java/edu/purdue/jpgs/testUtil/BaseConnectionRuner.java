@@ -15,7 +15,6 @@ public class BaseConnectionRuner extends BaseRunner {
     private final ServerSocket _listener;
 
     public BaseConnectionRuner(ServerSocket listener, Function<Socket, BaseConnection> func) {
-        setName("ServerRunner");
         _listener = listener;
         _func = func;
     }

@@ -20,78 +20,78 @@ public class DummyConnection extends BaseConnection {
     }
 
     @Override
-    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
+    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException, IOException {
         fail("StartupMessage should not be called");
         return false;
     }
 
     @Override
-    protected void PasswordMessage(String password) throws PgProtocolException {
+    protected void PasswordMessage(String password) throws PgProtocolException, IOException {
         fail("PasswordMessage should not be called");
     }
 
     @Override
-    protected void Query(String query) throws PgProtocolException {
+    protected void Query(String query) throws PgProtocolException, IOException {
         fail("Query should not be called");
     }
 
     @Override
-    protected void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException {
+    protected void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException, IOException {
         fail("CancelRequest should not be called");
     }
 
     @Override
-    protected void Close(byte what, String name) throws PgProtocolException {
+    protected void Close(byte what, String name) throws PgProtocolException, IOException {
         fail("Close should not be called");
     }
 
     @Override
-    protected void CopyFail(String errorMessage) throws PgProtocolException {
+    protected void CopyFail(String errorMessage) throws PgProtocolException, IOException {
         fail("CopyFail should not be called");
     }
 
     @Override
-    protected void Describe(char what, String name) throws PgProtocolException {
+    protected void Describe(char what, String name) throws PgProtocolException, IOException {
         fail("Describe should not be called");
     }
 
     @Override
-    protected void Execute(String portalName, int manRows) throws PgProtocolException {
+    protected void Execute(String portalName, int manRows) throws PgProtocolException, IOException {
         fail("Execute should not be called");
     }
 
     @Override
-    protected void Flush() throws PgProtocolException {
+    protected void Flush() throws PgProtocolException, IOException {
         fail("Flush should not be called");
     }
 
     @Override
-    protected void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException {
+    protected void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException, IOException {
         fail("Parse should not be called");
     }
 
     @Override
-    protected void CopyDataClientMsg(List<Byte> data) throws PgProtocolException {
+    protected void CopyDataClientMsg(List<Byte> data) throws PgProtocolException, IOException {
         fail("CopyDataClientMsg should not be called");
     }
 
     @Override
-    protected void CopyDoneClientMsg() throws PgProtocolException {
+    protected void CopyDoneClientMsg() throws PgProtocolException, IOException {
         fail("CopyDoneClientMsg should not be called");
     }
 
     @Override
-    protected void Sync() throws PgProtocolException {
+    protected void Sync() throws PgProtocolException, IOException {
         fail("Sync should not be called");
     }
 
     @Override
-    protected void Bind(String portalName, String source, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException {
+    protected void Bind(String portalName, String source, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException, IOException {
         fail("Bind should not be called");
     }
 
     @Override
-    protected void FunctionCall(int objectId, List<Short> argumentFormats, List<DataCellMsg> arguments, Short resultFormat) throws PgProtocolException {
+    protected void FunctionCall(int objectId, List<Short> argumentFormats, List<DataCellMsg> arguments, Short resultFormat) throws PgProtocolException, IOException {
         fail("FunctionCall should not be called");
     }
 

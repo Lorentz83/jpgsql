@@ -29,7 +29,6 @@ public class ClientRunner extends BaseRunner {
     }
 
     public ClientRunner(String name, String password, String db, int portNumber, SqlCommands func) {
-        setName("ClientRunner");
         _url = "jdbc:postgresql://localhost:" + portNumber + "/" + db;
         _properties = new Properties();
         _properties.setProperty("user", "fred");

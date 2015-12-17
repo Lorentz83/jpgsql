@@ -18,62 +18,38 @@ public class PgReader {
         _in = in;
     }
 
-    public char readCommand() throws PgProtocolException {
-        try {
-            char command = _in.readByte();
-            _size = _in.readInt32() - 4;
-            return command;
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+    public char readCommand() throws IOException {
+        char command = _in.readByte();
+        _size = _in.readInt32() - 4;
+        return command;
     }
 
-    public int readInt32() throws PgProtocolException {
+    public int readInt32() throws PgProtocolException, IOException {
         decreaseSize(4);
-        try {
-            return _in.readInt32();
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+        return _in.readInt32();
     }
 
-    public short readInt16() throws PgProtocolException {
+    public short readInt16() throws PgProtocolException, IOException {
         decreaseSize(2);
-        try {
-            return _in.readInt16();
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+        return _in.readInt16();
     }
 
-    public byte readInt8() throws PgProtocolException {
+    public byte readInt8() throws PgProtocolException, IOException {
         decreaseSize(1);
-        try {
-            return _in.readInt8();
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+        return _in.readInt8();
     }
 
-    public char readByte() throws PgProtocolException {
-        try {
-            decreaseSize(1);
-            return _in.readByte();
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+    public char readByte() throws PgProtocolException, IOException {
+        decreaseSize(1);
+        return _in.readByte();
     }
 
-    public void discardCommand() throws PgProtocolException {
-        try {
-            _in.skip(_size);
-            _size = 0;
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+    public void discardCommand() throws PgProtocolException, IOException {
+        _in.skip(_size);
+        _size = 0;
     }
 
-    public List<Short> readInt16Vector(int howMany) throws PgProtocolException {
+    public List<Short> readInt16Vector(int howMany) throws PgProtocolException, IOException {
         List<Short> ret = new ArrayList<>(howMany);
         for (int i = 0; i < howMany; i++) {
             ret.add(readInt16());
@@ -88,31 +64,25 @@ public class PgReader {
         _size = 0;
     }
 
-    private void decreaseSize(int bytes) throws PgProtocolException {
-        if (bytes < 0) {
-            throw new PgProtocolException("reading a negative number of bytes");
-        }
+    private void decreaseSize(int bytes) throws PgProtocolException, IOException {
+        assert (bytes > 0);
         _size -= bytes;
         if (_size < 0) {
             throw new PgProtocolException("protocol connection out of sync: no more data to read");
         }
     }
 
-    public String readString() throws PgProtocolException {
-        try {
-            String str = _in.readString();
-            _size -= str.length() + 1; //TODO this is not true in Unicode
-            return str;
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+    public String readString() throws PgProtocolException, IOException {
+        String str = _in.readString();
+        _size -= str.length() + 1; //TODO this is not true in Unicode
+        return str;
     }
 
-    public List<Byte> readByteVector() throws PgProtocolException {
+    public List<Byte> readByteVector() throws PgProtocolException, IOException {
         return readByteVector(_size);
     }
 
-    public List<Byte> readByteVector(int size) throws PgProtocolException {
+    public List<Byte> readByteVector(int size) throws PgProtocolException, IOException {
         List<Byte> ret = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             ret.add(readInt8());

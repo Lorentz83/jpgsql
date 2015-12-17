@@ -64,7 +64,7 @@ public class IntegrationTest {
             try {
                 return new DummyConnection(s) {
                     @Override
-                    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
+                    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException, IOException {
                         assertThat(parameters, hasEntry("user", _username));
                         assertThat(parameters, hasEntry("database", _dbName));
                         AuthenticationOk();
@@ -167,8 +167,8 @@ public class IntegrationTest {
         row1.add(new DataCellMsg("1 1"));
         row1.add(new DataCellMsg("1 2"));
         List<DataCellMsg> row2 = new ArrayList<>();
-        row1.add(new DataCellMsg("2 1"));
-        row1.add(new DataCellMsg("2 2"));
+        row2.add(new DataCellMsg("2 1"));
+        row2.add(new DataCellMsg("2 2"));
         List<List<DataCellMsg>> rows = new ArrayList<>();
         rows.add(row1);
         rows.add(row2);
@@ -189,10 +189,14 @@ public class IntegrationTest {
         ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
             Statement stm = conn.createStatement();
             try (ResultSet rs = stm.executeQuery(query)) {
+                assertThat(rs.getMetaData().getColumnName(1), is("col1"));
+                assertThat(rs.getMetaData().getColumnName(2), is("col2"));
+                assertThat(rs.getMetaData().getColumnCount(), is(2));
                 for (int r = 1; r <= 2; r++) {
                     assertThat(rs.next(), is(true));
+                    System.out.println(rs.getString("col1") + " " + rs.getString("col2"));
                     assertThat(rs.getString("col1"), is(String.format("%s %s", r, 1)));
-                    assertThat(rs.getString("col1"), is(String.format("%s %s", r, 2)));
+                    assertThat(rs.getString("col2"), is(String.format("%s %s", r, 2)));
                 }
                 assertThat(rs.next(), is(false));
             }

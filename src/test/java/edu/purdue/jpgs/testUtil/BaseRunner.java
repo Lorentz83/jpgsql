@@ -1,5 +1,7 @@
 package edu.purdue.jpgs.testUtil;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import static org.junit.Assert.fail;
 
 /**
@@ -11,8 +13,10 @@ public abstract class BaseRunner extends Thread {
     private Throwable _ex;
     private boolean _completed;
     private final long TIMEOUT = 1000000;
+    private final static Logger LOGGER = Logger.getLogger(BaseRunner.class.getName());
 
     public BaseRunner() {
+        setName(this.getClass().getName());
         _ex = null;
         _completed = false;
     }
@@ -24,6 +28,7 @@ public abstract class BaseRunner extends Thread {
         try {
             testCode();
         } catch (Throwable ex) {
+            LOGGER.log(Level.SEVERE, getName(), ex);
             _ex = ex;
         }
         _completed = true;

@@ -36,7 +36,7 @@ public abstract class BaseConnection {
         _rawReader = new RawReader(_socket.getInputStream());
     }
 
-    private void simpleCommand(char command) throws PgProtocolException {
+    private void simpleCommand(char command) throws PgProtocolException, IOException {
         try {
             new PgWriter(_socket.getOutputStream(), command).flush();
         } catch (IOException ex) {
@@ -44,7 +44,7 @@ public abstract class BaseConnection {
         }
     }
 
-    private PgWriter getWriter(char command) throws PgProtocolException {
+    private PgWriter getWriter(char command) throws PgProtocolException, IOException {
         try {
             return new PgWriter(_socket.getOutputStream(), command);
         } catch (IOException ex) {
@@ -52,7 +52,7 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void protocolStartUp() throws PgProtocolException {
+    protected void protocolStartUp() throws PgProtocolException, IOException {
         try {
             int req = _rawReader.readInt32();
             int version = _rawReader.readInt32();
@@ -100,7 +100,7 @@ public abstract class BaseConnection {
      *
      * @ingroup postgresSartup
      */
-    protected void AuthenticationOk() throws PgProtocolException {
+    protected void AuthenticationOk() throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('R')) {
             writer.addInt32(0);
         }
@@ -114,7 +114,7 @@ public abstract class BaseConnection {
      *
      * @ingroup postgresSartup
      */
-    protected void AuthenticationCleartextPassword() throws PgProtocolException {
+    protected void AuthenticationCleartextPassword() throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('R')) {
             writer.addInt32(3);
         }
@@ -127,7 +127,7 @@ public abstract class BaseConnection {
      * @param salt the MD5 salt.
      * @ingroup postgresSartup
      */
-    protected void AuthenticationMD5Password(char salt0, char salt1, char salt2, char salt3) throws PgProtocolException {
+    protected void AuthenticationMD5Password(char salt0, char salt1, char salt2, char salt3) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('R')) {
             writer.addInt32(5);
             writer.addByte(salt0);
@@ -152,7 +152,7 @@ public abstract class BaseConnection {
      * @param status the status of the backend:
      * @ingroup postgresSimpleQuery
      */
-    protected void ReadyForQuery(char status) throws PgProtocolException {
+    protected void ReadyForQuery(char status) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('Z')) {
             writer.addByte(status);
         }
@@ -165,8 +165,8 @@ public abstract class BaseConnection {
      * many rows were involved.
      * @ingroup postgresSimpleQuery
      */
-    protected void CommandComplete(String message) throws PgProtocolException {
-        try (PgWriter writer = getWriter('Z')) {
+    protected void CommandComplete(String message) throws PgProtocolException, IOException {
+        try (PgWriter writer = getWriter('C')) {
             writer.addString(message);
         }
     }
@@ -175,7 +175,7 @@ public abstract class BaseConnection {
      *
      * @ingroup postgresSimpleQuery
      */
-    protected void CopyInResponse(byte format, Collection<Short> formats) throws PgProtocolException {
+    protected void CopyInResponse(byte format, Collection<Short> formats) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('G')) {
             writer.addInt8(format);
             writer.addInt16((short) formats.size());
@@ -186,7 +186,7 @@ public abstract class BaseConnection {
     /**
      * @ingroup postgresSimpleQuery
      */
-    protected void CopyOutResponse(byte format, List<Short> formats) throws PgProtocolException {
+    protected void CopyOutResponse(byte format, List<Short> formats) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('H')) {
             writer.addInt8(format);
             writer.addInt16((short) formats.size());
@@ -204,7 +204,7 @@ public abstract class BaseConnection {
      * header.
      * @ingroup postgresSimpleQuery
      */
-    protected void RowDescription(List<ColumnDescriptionMsg> tableHeader) throws PgProtocolException {
+    protected void RowDescription(List<ColumnDescriptionMsg> tableHeader) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('T')) {
             writer.addInt16((short) tableHeader.size());
             for (ColumnDescriptionMsg it : tableHeader) {
@@ -226,7 +226,7 @@ public abstract class BaseConnection {
      * @param data a list of items, one per each column of the table returned.
      * @ingroup postgresSimpleQuery
      */
-    protected void DataRow(List<DataCellMsg> data) throws PgProtocolException {
+    protected void DataRow(List<DataCellMsg> data) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('D')) {
             writer.addInt16((short) data.size());
             for (DataCellMsg it : data) {
@@ -247,7 +247,7 @@ public abstract class BaseConnection {
      *
      * @ingroup postgresSimpleQuery
      */
-    protected void EmptyQueryResponse() throws PgProtocolException {
+    protected void EmptyQueryResponse() throws PgProtocolException, IOException {
         simpleCommand('I');
     }
 
@@ -259,7 +259,7 @@ public abstract class BaseConnection {
      * @param messages list of error messages.
      * @ingroup postgresSimpleQuery
      */
-    protected void ErrorResponse(List<ErrorResponseMsg> messages) throws PgProtocolException {
+    protected void ErrorResponse(List<ErrorResponseMsg> messages) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('E')) {
             for (ErrorResponseMsg it : messages) {
                 writer.addInt8(it.type);
@@ -274,7 +274,7 @@ public abstract class BaseConnection {
      *
      * @ingroup postgresSimpleQuery
      */
-    protected void NotificationResponse(int processId, String channelName, String payload) throws PgProtocolException {
+    protected void NotificationResponse(int processId, String channelName, String payload) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('A')) {
             writer.addInt32(processId);
             writer.addString(channelName);
@@ -283,21 +283,21 @@ public abstract class BaseConnection {
     }
 
     //backend messages extended Query
-    protected void PortalSuspended() throws PgProtocolException {
+    protected void PortalSuspended() throws PgProtocolException, IOException {
         simpleCommand('s');
     }
 
-    protected void ParseComplete() throws PgProtocolException {
+    protected void ParseComplete() throws PgProtocolException, IOException {
         simpleCommand('1');
     }
 
-    protected void FunctionCallResponse() throws PgProtocolException {
+    protected void FunctionCallResponse() throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('V')) {
             writer.addInt32(-1);
         }
     }
 
-    protected void FunctionCallResponse(List<Byte> result) throws PgProtocolException {
+    protected void FunctionCallResponse(List<Byte> result) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('V')) {
             writer.addInt32(result.size());
             for (Byte b : result) {
@@ -306,11 +306,11 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void NoData() throws PgProtocolException {
+    protected void NoData() throws PgProtocolException, IOException {
         simpleCommand('n');
     }
 
-    protected void NoticeResponse(Collection<NoticeResponseMsg> rsp) throws PgProtocolException {
+    protected void NoticeResponse(Collection<NoticeResponseMsg> rsp) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('N')) {
             for (NoticeResponseMsg it : rsp) {
                 writer.addInt8(it.type);
@@ -320,7 +320,7 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void ParameterDescription(List<Integer> parametersId) throws PgProtocolException {
+    protected void ParameterDescription(List<Integer> parametersId) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('t')) {
             writer.addInt32(parametersId.size());
             for (int id : parametersId) {
@@ -329,14 +329,14 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void ParameterStatus(String paramName, String value) throws PgProtocolException {
+    protected void ParameterStatus(String paramName, String value) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('S')) {
             writer.addString(paramName);
             writer.addString(value);
         }
     }
 
-    protected void CopyBothResponse(byte format, List<Short> formats) throws PgProtocolException {
+    protected void CopyBothResponse(byte format, List<Short> formats) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('W')) {
             writer.addInt8(format);
             writer.addInt16((short) formats.size());
@@ -346,22 +346,22 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void CloseComplete() throws PgProtocolException {
+    protected void CloseComplete() throws PgProtocolException, IOException {
         simpleCommand('3');
     }
 
-    protected void BindComplete() throws PgProtocolException {
+    protected void BindComplete() throws PgProtocolException, IOException {
         simpleCommand('2');
     }
 
-    protected void BackendKeyData(int processID, int secretKey) throws PgProtocolException {
+    protected void BackendKeyData(int processID, int secretKey) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('K')) {
             writer.addInt32(processID);
             writer.addInt32(secretKey);
         }
     }
 
-    protected void CopyDataServerMsg(Collection<Byte> data) throws PgProtocolException {
+    protected void CopyDataServerMsg(Collection<Byte> data) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('d')) {
             writer.addInt32(data.size());
             for (Byte b : data) {
@@ -370,7 +370,7 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void CopyDoneServerMsg() throws PgProtocolException {
+    protected void CopyDoneServerMsg() throws PgProtocolException, IOException {
         simpleCommand('c');
     }
 
@@ -389,7 +389,7 @@ public abstract class BaseConnection {
      * by the client. "user" is required and contains the user name; "database"
      * is optional and defaults to the user name.
      */
-    protected abstract boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException;
+    protected abstract boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException, IOException;
 
     /**
      * Invoked when the client provides a password. This method mast call
@@ -397,7 +397,7 @@ public abstract class BaseConnection {
      *
      * @param password the (possibly encrypted) password provided by the client.
      */
-    protected abstract void PasswordMessage(String password) throws PgProtocolException;
+    protected abstract void PasswordMessage(String password) throws PgProtocolException, IOException;
 
     /**
      * Invoked when a query the client send a query. According to the protocol,
@@ -408,37 +408,37 @@ public abstract class BaseConnection {
      *
      * @param query the sql command(s).
      */
-    protected abstract void Query(String query) throws PgProtocolException;
+    protected abstract void Query(String query) throws PgProtocolException, IOException;
 
-    protected abstract void Bind(String portalName, String preparedStatment, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException;
+    protected abstract void Bind(String portalName, String preparedStatment, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException, IOException;
 
-    protected abstract void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException;
+    protected abstract void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException, IOException;
 
-    protected abstract void Close(byte what, String name) throws PgProtocolException;
+    protected abstract void Close(byte what, String name) throws PgProtocolException, IOException;
 
-    protected abstract void CopyFail(String errorMessage) throws PgProtocolException;
+    protected abstract void CopyFail(String errorMessage) throws PgProtocolException, IOException;
 
-    protected abstract void Describe(char what, String name) throws PgProtocolException;
+    protected abstract void Describe(char what, String name) throws PgProtocolException, IOException;
 
-    protected abstract void Execute(String portalName, int manRows) throws PgProtocolException;
+    protected abstract void Execute(String portalName, int manRows) throws PgProtocolException, IOException;
 
-    protected abstract void Flush() throws PgProtocolException;
+    protected abstract void Flush() throws PgProtocolException, IOException;
 
-    protected abstract void FunctionCall(int objectId, List<Short> argumentFormats, List<DataCellMsg> arguments, Short resultFormat) throws PgProtocolException;
+    protected abstract void FunctionCall(int objectId, List<Short> argumentFormats, List<DataCellMsg> arguments, Short resultFormat) throws PgProtocolException, IOException;
 
-    protected abstract void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException;
+    protected abstract void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException, IOException;
 
-    protected abstract void CopyDataClientMsg(List<Byte> data) throws PgProtocolException;
+    protected abstract void CopyDataClientMsg(List<Byte> data) throws PgProtocolException, IOException;
 
-    protected abstract void CopyDoneClientMsg() throws PgProtocolException;
+    protected abstract void CopyDoneClientMsg() throws PgProtocolException, IOException;
 
-    protected abstract void Sync() throws PgProtocolException;
+    protected abstract void Sync() throws PgProtocolException, IOException;
 
     /**
      * Called when the client gracefully closes the connection. The default
      * implementation does nothing, can be reimplemented to handle the event.
      */
-    protected void Terminate() throws PgProtocolException {
+    protected void Terminate() throws PgProtocolException, IOException {
     }
 
     /**
@@ -551,10 +551,14 @@ public abstract class BaseConnection {
             }
         } catch (PgProtocolException ex) {
             try {
+                LOGGER.log(Level.SEVERE, "Error in the protocol, closing the connection", ex);
                 _socket.close();
             } catch (IOException ignoreme) {
             }
             throw ex;
+        } catch (IOException ex) {
+            LOGGER.log(Level.WARNING, "Connection closed", ex);
+            return false;
         }
     }
 

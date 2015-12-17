@@ -34,7 +34,7 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException {
+    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException, IOException, IOException {
         String user = parameters.get("user");
         if (user == null) {
             throw new PgProtocolException("Missing username");
@@ -57,7 +57,7 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void PasswordMessage(String password) throws PgProtocolException {
+    protected void PasswordMessage(String password) throws PgProtocolException, IOException, IOException {
         if (_provider.setPassword(password)) {
             AuthenticationOk();
             if (!_provider.setDatabase(_database)) {
@@ -68,7 +68,7 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void Query(String query) throws PgProtocolException {
+    protected void Query(String query) throws PgProtocolException, IOException {
         /**
          * @todo the query string may contain multiple sql statements
          */
@@ -86,7 +86,7 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void Bind(String portalName, String preparedStatment, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException {
+    protected void Bind(String portalName, String preparedStatment, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException, IOException {
         String realQuery = _preparedStatements.get(preparedStatment);
         if (realQuery == null) {
             ErrorResponse(makeError("26000", "unknown statement name"));
@@ -133,12 +133,12 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException {
+    protected void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException, IOException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    protected void Close(byte what, String name) throws PgProtocolException {
+    protected void Close(byte what, String name) throws PgProtocolException, IOException {
         /*
          * The Close message closes an existing prepared statement or portal and
          * releases resources.
@@ -162,7 +162,7 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void Execute(String portalName, int manRows) throws PgProtocolException {
+    protected void Execute(String portalName, int manRows) throws PgProtocolException, IOException {
         //maxRows == 0 means fetch them all
         String query = _portals.get(portalName);
         if (query == null) {
@@ -182,12 +182,12 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void FunctionCall(int objectId, List<Short> argumentFormats, List<DataCellMsg> arguments, Short resultFormat) throws PgProtocolException {
+    protected void FunctionCall(int objectId, List<Short> argumentFormats, List<DataCellMsg> arguments, Short resultFormat) throws PgProtocolException, IOException {
         ErrorResponse(makeError("Not supported"));
     }
 
     @Override
-    protected void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException {
+    protected void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException, IOException {
         if (preparedStatment.isEmpty()) {
             _preparedStatements.remove(preparedStatment);
         }
@@ -200,11 +200,11 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void Sync() throws PgProtocolException {
+    protected void Sync() throws PgProtocolException, IOException {
         ReadyForQuery('I'); //we don't implement transactions
     }
 
-    private boolean respondToEmptyQuery(String query) throws PgProtocolException {
+    private boolean respondToEmptyQuery(String query) throws PgProtocolException, IOException {
         if (query.isEmpty() || query.equals(";")) {
             EmptyQueryResponse();
             return true;
@@ -220,7 +220,7 @@ public class SimpleConnection extends BaseConnection {
         return header;
     }
 
-    private void sendQueryResult(DataProvider.QueryResult table, int maxRows) throws PgProtocolException {
+    private void sendQueryResult(DataProvider.QueryResult table, int maxRows) throws PgProtocolException, IOException {
         switch (table.getType()) {
             case CREATE:
                 CommandComplete("SELECT " + table.getRowCount());
@@ -265,7 +265,7 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void Describe(char what, String name) throws PgProtocolException {
+    protected void Describe(char what, String name) throws PgProtocolException, IOException {
         switch (what) {
             case 'S': // prepared statement
                 ErrorResponse(makeError("0A000", "unsupported feature: describe prepared statement"));
@@ -286,22 +286,22 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void CopyFail(String errorMessage) throws PgProtocolException {
+    protected void CopyFail(String errorMessage) throws PgProtocolException, IOException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    protected void CopyDataClientMsg(List<Byte> data) throws PgProtocolException {
+    protected void CopyDataClientMsg(List<Byte> data) throws PgProtocolException, IOException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    protected void CopyDoneClientMsg() throws PgProtocolException {
+    protected void CopyDoneClientMsg() throws PgProtocolException, IOException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    protected void Flush() throws PgProtocolException {
+    protected void Flush() throws PgProtocolException, IOException {
         /*
          * The Flush message does not cause any specific output to be generated, but
          * forces the backend to deliver any data pending in its output buffers.
