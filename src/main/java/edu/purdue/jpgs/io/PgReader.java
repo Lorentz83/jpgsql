@@ -73,9 +73,9 @@ public class PgReader {
     }
 
     public String readString() throws PgProtocolException, IOException {
-        String str = _in.readString();
-        _size -= str.length() + 1; //TODO this is not true in Unicode
-        return str;
+        RawReader.CString str = _in.readString();
+        _size -= str.length;
+        return str.str;
     }
 
     public List<Byte> readByteVector() throws PgProtocolException, IOException {

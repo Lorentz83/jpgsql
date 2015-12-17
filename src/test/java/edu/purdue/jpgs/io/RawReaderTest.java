@@ -92,7 +92,18 @@ public class RawReaderTest {
     public void readString() throws Exception {
         ByteArrayInputStream is = new ByteArrayInputStream(getByteArray('q', 'w', 'e', 'r', '\0'));
         RawReader reader = new RawReader(is);
-        assertThat(reader.readString(), is("qwer"));
+        RawReader.CString cstr = reader.readString();
+        assertThat(cstr.str, is("qwer"));
+        assertThat(cstr.length, is(5));
+    }
+
+    @Test
+    public void readString_unicode() throws Exception {
+        ByteArrayInputStream is = new ByteArrayInputStream(getByteArray('q', 'w', 0xC3, 0xA8, 'r', '\0'));
+        RawReader reader = new RawReader(is);
+        RawReader.CString cstr = reader.readString();
+        assertThat(cstr.str, is("qwèr"));
+        assertThat(cstr.length, is(6));
     }
 
     @Test
@@ -108,9 +119,10 @@ public class RawReaderTest {
 
     @Test
     public void readStringList() throws Exception {
-        ByteArrayInputStream is = new ByteArrayInputStream(getByteArray('q', 'w', '\0', 'e', 'r', '\0', 't', 'y', '\0'));
+        byte[] byteArray = getByteArray('q', 'w', '\0', 0xC3, 0xA8, 'r', '\0', 't', 'y', '\0');
+        ByteArrayInputStream is = new ByteArrayInputStream(byteArray);
         RawReader reader = new RawReader(is);
-        assertThat(reader.readStringList(9), contains("qw", "er", "ty"));
+        assertThat(reader.readStringList(byteArray.length), contains("qw", "èr", "ty"));
     }
 
     @Test

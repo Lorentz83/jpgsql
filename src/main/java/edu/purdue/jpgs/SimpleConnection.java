@@ -109,8 +109,8 @@ public class SimpleConnection extends BaseConnection {
             } else {
                 textVal = Conversions.toString(value);
                 textVal = textVal.replace("\"", "\"\"");
-                textVal = "\"" + textVal + "\"";
             }
+            textVal = "\"" + textVal + "\"";
             realQuery = realQuery.replace(placeholder, textVal);
 
             /**

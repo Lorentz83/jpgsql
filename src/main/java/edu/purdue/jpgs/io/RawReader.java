@@ -1,9 +1,9 @@
 package edu.purdue.jpgs.io;
 
+import edu.purdue.jpgs.type.Conversions;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -11,6 +11,29 @@ import java.util.List;
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
 public class RawReader {
+
+    /**
+     * Represents a c string. The problem is that the postgres protocol uses
+     * null terminated strings and count the size in bytes. The equality
+     * str.length() == number of bytes does not hold for unicode string. This
+     * class is a pair [String, length] where length is in bytes and counts also
+     * the null terminator.
+     */
+    public class CString {
+
+        public final String str;
+        public final int length;
+
+        public CString(String str, int length) {
+            this.str = str;
+            this.length = length;
+        }
+
+        @Override
+        public String toString() {
+            return str;
+        }
+    }
 
     private final InputStream _in;
 
@@ -34,13 +57,15 @@ public class RawReader {
         return (char) read();
     }
 
-    public String readString() throws IOException {
-        StringBuilder sb = new StringBuilder();
+    public CString readString() throws IOException {
+        ArrayList<Byte> val = new ArrayList<>();
         int c;
-        for (c = read(); c != 0; c = _in.read()) {
-            sb.append((char) c); //TODO add unicode support.
+        int len = 0;
+        for (c = read(); c != 0; c = read()) {
+            len++;
+            val.add((byte) c);
         }
-        return sb.toString();
+        return new CString(Conversions.toString(val), len + 1);
     }
 
     public List<String> readStringList(int len) throws IOException {
@@ -51,15 +76,17 @@ public class RawReader {
         if (buf[len - 1] != '\0') {
             throw new IOException("attempting to read a non null terminated string");
         }
-        List<String> ret = new ArrayList<>();
-        int start = 0;
+        List<String> stringList = new ArrayList<>();
+        List<Byte> cstr = new ArrayList<>();
         for (int n = 0; n < len; n++) {
             if (buf[n] == '\0') {
-                ret.add(new String(Arrays.copyOfRange(buf, start, n)));
-                start = n + 1;
+                stringList.add(Conversions.toString(cstr));
+                cstr.clear();
+            } else {
+                cstr.add(buf[n]);
             }
         }
-        return ret;
+        return stringList;
     }
 
     private int read() throws IOException {

@@ -84,8 +84,12 @@ public abstract class BaseConnection {
                 if (passwordRequest != 'p') {
                     throw new PgProtocolException("expected password");
                 }
-                int len = _rawReader.readInt32(); //TODO check size
-                PasswordMessage(_rawReader.readString());
+                int len = _rawReader.readInt32();
+                RawReader.CString password = _rawReader.readString();
+                if (len - 4 != password.length) {
+                    throw new PgProtocolException("protocol out of sync");
+                }
+                PasswordMessage(password.str);
             }
         } catch (IOException ex) {
             throw new PgProtocolException(ex);
@@ -473,7 +477,8 @@ public abstract class BaseConnection {
                         Short parameterValNum = reader.readInt16();
                         List<List<Byte>> parameters = new ArrayList<>();
                         for (int n = 0; n < parameterValNum; n++) {
-                            parameters.add(reader.readByteVector(reader.readInt32()));
+                            int parLen = reader.readInt32();
+                            parameters.add(reader.readByteVector(parLen));
                         }
                         List<Short> resultFormatCodes = reader.readInt16Vector(reader.readInt16());
                         Bind(portal, preparedStatement, parameterFormats, parameters, resultFormatCodes);

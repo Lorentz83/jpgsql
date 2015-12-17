@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import org.junit.After;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.mockito.Mockito.*;
 import org.postgresql.util.PSQLException;
@@ -211,4 +213,95 @@ public class IntegrationTest {
         client.assertCompleted();
     }
 
+    @Test
+    public void simpleQuery_preparedStatementSelect() throws Throwable {
+        List<String> header = new ArrayList<>();
+        header.add("col1");
+        header.add("col2");
+        List<DataCellMsg> row1 = new ArrayList<>();
+        row1.add(new DataCellMsg("1 1"));
+        row1.add(new DataCellMsg("1 2"));
+        List<DataCellMsg> row2 = new ArrayList<>();
+        row2.add(new DataCellMsg("2 1"));
+        row2.add(new DataCellMsg("2 2"));
+        List<List<DataCellMsg>> rows = new ArrayList<>();
+        rows.add(row1);
+        rows.add(row2);
+
+        when(_provider.setUser(_username)).thenReturn(true);
+        when(_provider.setPassword(_password)).thenReturn(true);
+        when(_provider.setDatabase(_dbName)).thenReturn(true);
+
+        when(_provider.getResult("select * from tbl where f > \"65024\"")).thenReturn(_table);
+        when(_provider.getResult("select * from tbl where f > \"25\"")).thenReturn(_table);
+        when(_table.getHeader()).thenReturn(header);
+        when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.SELECT);
+
+        when(_table.getRows()).thenReturn(rows);
+        when(_table.getRowCount()).thenReturn(2);
+
+        _strictMock.turnOn();
+
+        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
+            PreparedStatement stm = conn.prepareStatement("select * from tbl where f > ?");
+            stm.setInt(1, 65024);
+            try (ResultSet rs = stm.executeQuery()) {
+                assertThat(rs.getMetaData().getColumnName(1), is("col1"));
+                assertThat(rs.getMetaData().getColumnName(2), is("col2"));
+                assertThat(rs.getMetaData().getColumnCount(), is(2));
+                for (int r = 1; r <= 2; r++) {
+                    assertThat(rs.next(), is(true));
+                    System.out.println(rs.getString("col1") + " " + rs.getString("col2"));
+                    assertThat(rs.getString("col1"), is(String.format("%s %s", r, 1)));
+                    assertThat(rs.getString("col2"), is(String.format("%s %s", r, 2)));
+                }
+                assertThat(rs.next(), is(false));
+            }
+            stm.setInt(1, 25);
+            try (ResultSet rs = stm.executeQuery()) {
+                assertThat(rs.getMetaData().getColumnCount(), is(2));
+            }
+        });
+
+        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
+
+        server.start();
+        client.start();
+
+        server.assertCompleted();
+        client.assertCompleted();
+    }
+
+    @Ignore("TODO")
+    @Test
+    public void simpleQuery_preparedStatementTypes() throws Throwable {
+        when(_provider.setUser(_username)).thenReturn(true);
+        when(_provider.setPassword(_password)).thenReturn(true);
+        when(_provider.setDatabase(_dbName)).thenReturn(true);
+
+        when(_provider.getResult("delete from tbl where f1 = \"10\" AND f2 = \"a \"\" quoted \' string\" AND f3 = \"2.5\" AND f4 = \"2.4\" AND f5 = \"b\"")).thenReturn(_table);
+        when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.DELETE);
+        when(_table.getRowCount()).thenReturn(3);
+
+        _strictMock.turnOn();
+
+        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
+            PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = ? AND f2 = ? AND f3 = ? AND f4 = ? AND f5 = ?");
+            stm.setInt(1, 10);  // 4
+            stm.setString(2, "a \" quoted \' string"); //19
+            stm.setDouble(3, 2.5); //8
+            stm.setFloat(4, (float) 2.4); //4
+            stm.setByte(5, (byte) 'b');  //2
+            stm.execute();
+        });
+
+        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
+
+        server.start();
+        client.start();
+
+        server.assertCompleted();
+        client.assertCompleted();
+
+    }
 }
