@@ -23,7 +23,6 @@ import org.junit.After;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.mockito.Mockito.*;
 import org.postgresql.util.PSQLException;
@@ -232,8 +231,8 @@ public class IntegrationTest {
         when(_provider.setPassword(_password)).thenReturn(true);
         when(_provider.setDatabase(_dbName)).thenReturn(true);
 
-        when(_provider.getResult("select * from tbl where f > \"65024\"")).thenReturn(_table);
-        when(_provider.getResult("select * from tbl where f > \"25\"")).thenReturn(_table);
+        when(_provider.getResult("select * from tbl where f > '65024'")).thenReturn(_table);
+        when(_provider.getResult("select * from tbl where f > '25'")).thenReturn(_table);
         when(_table.getHeader()).thenReturn(header);
         when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.SELECT);
 
@@ -272,26 +271,22 @@ public class IntegrationTest {
         client.assertCompleted();
     }
 
-    @Ignore("TODO")
     @Test
     public void simpleQuery_preparedStatementTypes() throws Throwable {
         when(_provider.setUser(_username)).thenReturn(true);
         when(_provider.setPassword(_password)).thenReturn(true);
         when(_provider.setDatabase(_dbName)).thenReturn(true);
 
-        when(_provider.getResult("delete from tbl where f1 = \"10\" AND f2 = \"a \"\" quoted \' string\" AND f3 = \"2.5\" AND f4 = \"2.4\" AND f5 = \"b\"")).thenReturn(_table);
+        when(_provider.getResult("delete from tbl where f1 = '10' AND f2 = 'a \" quoted '' string'")).thenReturn(_table);
         when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.DELETE);
         when(_table.getRowCount()).thenReturn(3);
 
         _strictMock.turnOn();
 
         ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
-            PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = ? AND f2 = ? AND f3 = ? AND f4 = ? AND f5 = ?");
+            PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = ? AND f2 = ?");
             stm.setInt(1, 10);  // 4
-            stm.setString(2, "a \" quoted \' string"); //19
-            stm.setDouble(3, 2.5); //8
-            stm.setFloat(4, (float) 2.4); //4
-            stm.setByte(5, (byte) 'b');  //2
+            stm.setString(2, "a \" quoted ' string"); //19
             stm.execute();
         });
 

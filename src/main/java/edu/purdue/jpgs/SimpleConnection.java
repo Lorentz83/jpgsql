@@ -3,7 +3,6 @@ package edu.purdue.jpgs;
 import edu.purdue.jpgs.type.ColumnDescriptionMsg;
 import edu.purdue.jpgs.type.Conversions;
 import edu.purdue.jpgs.type.DataCellMsg;
-import edu.purdue.jpgs.type.ErrorResponseMsg;
 import static edu.purdue.jpgs.type.ErrorResponseMsg.makeError;
 import java.io.IOException;
 import java.net.Socket;
@@ -105,12 +104,23 @@ public class SimpleConnection extends BaseConnection {
             String placeholder = "$" + (i + 1);
             String textVal;
             if (binary) {
+                if (value.size() > 4) {
+                    /*
+                     TODO, depending of the method invoked ( set*(..) )
+                     this value can have different binary encodings.
+                     There is no real way to understand it without the knowledge of the
+                     table.
+                     Therefore we assume it is an integer and return an error message if not.
+                     */
+                    ErrorResponse(makeError("42804", "Binary encoding not supported"));
+                    return;
+                }
                 textVal = Integer.toString(Conversions.toInt(value));
             } else {
                 textVal = Conversions.toString(value);
-                textVal = textVal.replace("\"", "\"\"");
+                textVal = textVal.replace("'", "''");
             }
-            textVal = "\"" + textVal + "\"";
+            textVal = "'" + textVal + "'";
             realQuery = realQuery.replace(placeholder, textVal);
 
             /**
@@ -248,15 +258,7 @@ public class SimpleConnection extends BaseConnection {
             }
             break;
             case ERROR: {
-                List<ErrorResponseMsg> errors = new ArrayList<>(3);
-                errors.add(new ErrorResponseMsg('S', "ERROR"));
-                errors.add(new ErrorResponseMsg('C', "42601"));
-                errors.add(new ErrorResponseMsg('M', table.getErrorMessage()));
-                //        errors.push_back(errorResponseMsg('P', "1"));
-                //        errors.push_back(errorResponseMsg('F', "scan.l"));
-                //        errors.push_back(errorResponseMsg('L', "1053"));
-                //        errors.push_back(errorResponseMsg('R', "scanner_yyerror"));
-                ErrorResponse(errors);
+                ErrorResponse(makeError("42601", table.getErrorMessage()));
             }
             break;
             default:
@@ -276,7 +278,11 @@ public class SimpleConnection extends BaseConnection {
                     ErrorResponse(makeError("42602", "unknown portal name"));
                 } else {
                     DataProvider.QueryResult table = _provider.getResult(q);
-                    RowDescription(getTableHeader(table.getHeader()));
+                    if (table.getType() == DataProvider.QueryResult.Type.SELECT) {
+                        RowDescription(getTableHeader(table.getHeader()));
+                    } else {
+                        NoData();
+                    }
                 }
                 break;
             default:
