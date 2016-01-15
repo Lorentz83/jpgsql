@@ -1,6 +1,8 @@
 package edu.purdue.jpgs.type;
 
 /**
+ * Represents a column header. This is a column header as represented by the
+ * messages used in the Postgres protocol.
  *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
@@ -14,6 +16,18 @@ public class ColumnDescriptionMsg {
     public final int typeModifier;
     public final short formatCode;
 
+    /**
+     * Creates a column description. The column reports information of the table
+     * it is part of.
+     *
+     * @param name the column header.
+     * @param tableID the id of the table this column is part of.
+     * @param columnID the id of this column.
+     * @param typeID the type id.
+     * @param typeSize the type size or -1 if variable size.
+     * @param typeModifier
+     * @param formatCode
+     */
     public ColumnDescriptionMsg(String name, int tableID, short columnID, int typeID, short typeSize, int typeModifier, short formatCode) {
         this.name = name;
         this.tableID = tableID;
@@ -28,7 +42,7 @@ public class ColumnDescriptionMsg {
      * Creates a columnDescriptionMsg. Not linked to any table and in text
      * format.
      *
-     * @param name the name of the column.
+     * @param name the column header.
      * @param typeID the type id.
      * @param typeSize the type size or -1 if variable size.
      */

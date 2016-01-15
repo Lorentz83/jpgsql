@@ -1,15 +1,26 @@
 package edu.purdue.jpgs.io;
 
 import edu.purdue.jpgs.PgProtocolException;
+import edu.purdue.jpgs.type.Conversions;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 
+/*
+ TODO: right now we use one instance of this class for each command sent to the client.
+ But commands can actually been packed to save network usage.
+ It may be good to change BaseConnection to implement this.
+ */
 /**
+ * Implements a writer specialized in writing the Postgres messages. Postgres
+ * messages are triplets [command, size of the message, additional parameters].
+ * This helper class keeps a buffer of all the parameters and automatically
+ * counts the size of the message before flushing it to the network. This class
+ * should be used once for every command and either created in a
+ * try-with-resources or manually call {@link #flush() } to send the data to the
+ * network.
  *
- * @author Lorenzo Bossi
+ * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
 public class PgWriter implements AutoCloseable {
 
@@ -17,6 +28,13 @@ public class PgWriter implements AutoCloseable {
     private final OutputStream _os;
     private ByteBuffer _buffer;
 
+    /**
+     * Initializes a PgWriter. Messages are not actually sent over the network
+     * until {@link #close() } or {@link #flush()} is called.
+     *
+     * @param os the output stream to write.
+     * @param command the Postgres command.
+     */
     public PgWriter(OutputStream os, char command) {
         _os = os;
         _command = command;
@@ -24,7 +42,7 @@ public class PgWriter implements AutoCloseable {
     }
 
     public void addString(String str) {
-        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = Conversions.getBytes(str);
         _buffer.append(bytes);
         _buffer.append((byte) 0);
     }
@@ -49,10 +67,14 @@ public class PgWriter implements AutoCloseable {
         _buffer.append((byte) b);
     }
 
-    public void writeInt16(Collection<Short> formats) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
+    /**
+     * Sends the message over the network. This method can be safely called more
+     * than once, but only the first actually sends data. Once this method is
+     * called, this writer is not valid anymore and any call of any add* method
+     * will result in an exception.
+     *
+     * @throws PgProtocolException
+     */
     public void flush() throws PgProtocolException {
         if (_buffer == null) {
             return;
@@ -74,12 +96,23 @@ public class PgWriter implements AutoCloseable {
         }
     }
 
+    /**
+     * Sends the message over the network. It is a convenience method to call {@link #flush()
+     * }.
+     *
+     * @throws PgProtocolException
+     */
     @Override
     public void close() throws PgProtocolException {
         flush();
     }
 }
 
+/**
+ * Implements a simple byte buffer.
+ *
+ * @author Lorenzo Bossi [lbossi@purdue.edu]
+ */
 class ByteBuffer {
 
     private final ArrayList<Byte> _buffer = new ArrayList<Byte>();

@@ -105,8 +105,8 @@ public abstract class BaseConnection {
 
     /**
      * Sends an AuthenticationOk message. This is a valid message only during
-     * start-up phase, it should be called only in #StartupMessage or
-     * #PasswordMessage once the user is successfully authenticated.
+     * start-up phase, it should be called only in {@link #StartupMessage(int, java.util.Map)) or
+     * {@link #PasswordMessage(java.lang.String) } once the user is successfully authenticated.
      *
      * @ingroup postgresSartup
      */
@@ -119,8 +119,8 @@ public abstract class BaseConnection {
 
     /**
      * Sends a request for a clear text Password. This method must be called
-     * only in #StartupMessage to require a clear text password. The password
-     * will be provided by #PasswordMessage
+     * only in {@link  #StartupMessage} to require a clear text password. The
+     * password will be provided by {@link #PasswordMessage}.
      *
      * @ingroup postgresSartup
      */
@@ -132,7 +132,7 @@ public abstract class BaseConnection {
 
     /**
      * Sends a request for an MD5 encrypted password. The encrypted password
-     * will be provided by #PasswordMessage
+     * will be provided by {@link #PasswordMessage}.
      *
      * @param salt0 first byte to use as salt.
      * @param salt1 second byte to use as salt.
@@ -159,9 +159,9 @@ public abstract class BaseConnection {
     //void AuthenticationGSSContinue();
     /**
      * Sends a ready for query message. Currently an idle ready message is sent
-     * automatically in #run(). Valid statuses are: 'I' if idle (not in a
-     * transaction block); 'T' if in a transaction block; or 'E' if in a failed
-     * transaction block (queries will be rejected until block is ended)
+     * automatically in {@link #run()}. Valid statuses are: 'I' if idle (not in
+     * a transaction block); 'T' if in a transaction block; or 'E' if in a
+     * failed transaction block (queries will be rejected until block is ended)
      *
      * @param status the status of the backend:
      * @ingroup postgresSimpleQuery
@@ -193,7 +193,9 @@ public abstract class BaseConnection {
         try (PgWriter writer = getWriter('G')) {
             writer.addInt8(format);
             writer.addInt16((short) formats.size());
-            writer.writeInt16(formats);
+            for (Short f : formats) {
+                writer.addInt16(f);
+            }
         }
     }
 
@@ -212,7 +214,7 @@ public abstract class BaseConnection {
 
     /**
      * Sends a row description message. This message must be sent before
-     * #DataRow is used, whenever a query returns some data.
+     * {@link #DataRow} is used, whenever a query returns some data.
      *
      * @param tableHeader a collection of ColumnDescriptionMsg to describe the
      * table header.
@@ -235,7 +237,7 @@ public abstract class BaseConnection {
 
     /**
      * Sends a data row message. It sends one row of the returned table. Must be
-     * called after a #RowDescription.
+     * called after a {@link #RowDescription}.
      *
      * @param data a collection of items, one per each column of the table
      * returned.
@@ -475,7 +477,7 @@ public abstract class BaseConnection {
                 return false;
             }
             ReadyForQuery('I');
-            for (PgReader reader = new PgReader(_rawReader);; reader.checkAndReset()) {
+            for (PgReader reader = new PgReader(_rawReader);; reader.check()) {
                 char command = reader.readCommand();
 
                 switch (command) {
@@ -492,14 +494,14 @@ public abstract class BaseConnection {
                         String portal = reader.readString();
                         String preparedStatement = reader.readString();
                         Short parameterNum = reader.readInt16();
-                        List<Short> parameterFormats = reader.readInt16Vector(parameterNum);
+                        List<Short> parameterFormats = reader.readInt16List(parameterNum);
                         Short parameterValNum = reader.readInt16();
                         List<List<Byte>> parameters = new ArrayList<>();
                         for (int n = 0; n < parameterValNum; n++) {
                             int parLen = reader.readInt32();
-                            parameters.add(reader.readByteVector(parLen));
+                            parameters.add(reader.readByteList(parLen));
                         }
-                        List<Short> resultFormatCodes = reader.readInt16Vector(reader.readInt16());
+                        List<Short> resultFormatCodes = reader.readInt16List(reader.readInt16());
                         Bind(portal, preparedStatement, parameterFormats, parameters, resultFormatCodes);
                         break;
                     }
@@ -509,7 +511,7 @@ public abstract class BaseConnection {
                         break;
                     }
                     case 'd': {
-                        CopyDataClientMsg(reader.readByteVector());
+                        CopyDataClientMsg(reader.readByteList());
                         break;
                     }
                     case 'c': {
@@ -536,7 +538,7 @@ public abstract class BaseConnection {
                     }
                     case 'F': {
                         int objId = reader.readInt32();
-                        List<Short> argsFormat = reader.readInt16Vector(reader.readInt16());
+                        List<Short> argsFormat = reader.readInt16List(reader.readInt16());
                         Short argProvided = reader.readInt16();
                         List<DataCellMsg> arguments = new ArrayList<>();
                         for (int n = 0; n < argProvided; n++) {
@@ -544,7 +546,7 @@ public abstract class BaseConnection {
                             if (size < 0) {
                                 arguments.add(new DataCellMsg());
                             } else {
-                                List<Byte> data = reader.readByteVector(size);
+                                List<Byte> data = reader.readByteList(size);
                                 arguments.add(new DataCellMsg(data));
                             }
                         }
