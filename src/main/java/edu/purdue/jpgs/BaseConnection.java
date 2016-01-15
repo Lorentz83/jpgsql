@@ -18,6 +18,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
+ * Implements the base functions required by the Postgres protocol to handle one
+ * connection. See
+ * <a href="http://www.postgresql.org/docs/9.4/static/protocol-message-formats.html">message
+ * formats</a> for details. Upper case functions are named after the message
+ * defined by the Postgres communication protocol. The methods implemented are
+ * the one used by the backend to sends reply, the abstracts methods are the one
+ * to be implemented to handle the client requests.
  *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
@@ -98,9 +105,8 @@ public abstract class BaseConnection {
 
     /**
      * Sends an AuthenticationOk message. This is a valid message only during
-     * start-up phase, it should be called only in
-     * baseConnection::StartupMessage or baseConnection::PasswordMessage once
-     * the user is successfully authenticated.
+     * start-up phase, it should be called only in #StartupMessage or
+     * #PasswordMessage once the user is successfully authenticated.
      *
      * @ingroup postgresSartup
      */
@@ -113,8 +119,8 @@ public abstract class BaseConnection {
 
     /**
      * Sends a request for a clear text Password. This method must be called
-     * only in baseConnection::StartupMessage to require a clear text password.
-     * The password will be provided by baseConnection::PasswordMessage
+     * only in #StartupMessage to require a clear text password. The password
+     * will be provided by #PasswordMessage
      *
      * @ingroup postgresSartup
      */
@@ -126,9 +132,14 @@ public abstract class BaseConnection {
 
     /**
      * Sends a request for an MD5 encrypted password. The encrypted password
-     * will be provided by baseConnection::PasswordMessage
+     * will be provided by #PasswordMessage
      *
-     * @param salt the MD5 salt.
+     * @param salt0 first byte to use as salt.
+     * @param salt1 second byte to use as salt.
+     * @param salt2 third byte to use as salt.
+     * @param salt3 fourth byte to use as salt.
+     * @throws edu.purdue.jpgs.PgProtocolException
+     * @throws java.io.IOException
      * @ingroup postgresSartup
      */
     protected void AuthenticationMD5Password(char salt0, char salt1, char salt2, char salt3) throws PgProtocolException, IOException {
@@ -148,10 +159,9 @@ public abstract class BaseConnection {
     //void AuthenticationGSSContinue();
     /**
      * Sends a ready for query message. Currently an idle ready message is sent
-     * automatically in baseConnection::run(). Valid statuses are: 'I' if idle
-     * (not in a transaction block); 'T' if in a transaction block; or 'E' if in
-     * a failed transaction block (queries will be rejected until block is
-     * ended)
+     * automatically in #run(). Valid statuses are: 'I' if idle (not in a
+     * transaction block); 'T' if in a transaction block; or 'E' if in a failed
+     * transaction block (queries will be rejected until block is ended)
      *
      * @param status the status of the backend:
      * @ingroup postgresSimpleQuery
@@ -202,7 +212,7 @@ public abstract class BaseConnection {
 
     /**
      * Sends a row description message. This message must be sent before
-     * baseConnection::DataRow is used, whenever a query returns some data.
+     * #DataRow is used, whenever a query returns some data.
      *
      * @param tableHeader a list of ColumnDescriptionMsg to describe the table
      * header.
@@ -225,7 +235,7 @@ public abstract class BaseConnection {
 
     /**
      * Sends a data row message. It sends one row of the returned table. Must be
-     * called after a baseConnection::RowDescription.
+     * called after a #RowDescription.
      *
      * @param data a list of items, one per each column of the table returned.
      * @ingroup postgresSimpleQuery
@@ -446,7 +456,15 @@ public abstract class BaseConnection {
     }
 
     /**
-     * Starts the protocol loop.
+     * Starts the protocol loop. This method silently suppress connection errors
+     * because many clients just close the connection when they are done.
+     *
+     * @return true if the client gracefully terminated the connection, false if
+     * the client did not get authenticated or the connection has been closed
+     * without any notification.
+     * @throws edu.purdue.jpgs.PgProtocolException if there is an error in the
+     * protocol. This can mean either bug in the server side implementation or a
+     * client that sends junk.
      */
     public boolean run() throws PgProtocolException {
         try {

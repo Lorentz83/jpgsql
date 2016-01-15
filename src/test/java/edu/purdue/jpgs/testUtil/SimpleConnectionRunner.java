@@ -22,7 +22,7 @@ public class SimpleConnectionRunner extends BaseRunner {
     @Override
     protected void testCode() throws Throwable {
         try (Socket socket = _listener.accept()) {
-            SimpleConnection conn = new SimpleConnection(socket, _provider, -1);
+            SimpleConnection conn = new SimpleConnection(socket, _provider);
             conn.run();
         }
     }

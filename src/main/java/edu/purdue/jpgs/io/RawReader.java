@@ -37,7 +37,7 @@ public class RawReader {
 
     private final InputStream _in;
 
-    public RawReader(InputStream in) throws IOException {
+    public RawReader(InputStream in) {
         _in = in;
     }
 

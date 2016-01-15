@@ -10,8 +10,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 /**
+ * Abstracts most of the complicated messages defined by the Postgres protocol
+ * giving an easier interface to interact. Note, to correctly handle all data
+ * types set 'binaryTransfer' to false when connecting through JDBC. To use this
+ * class just implement a {@link DataProvider}, pass it to the constructor and
+ * execute {@link #run() } to start the protocol execution.
  *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
@@ -22,14 +28,54 @@ public class SimpleConnection extends BaseConnection {
     private final DataProvider _provider;
     private final Map<String, String> _preparedStatements;
     private final Map<String, String> _portals;
+    private final BiConsumer<Integer, Integer> _cancelCallback;
 
-    public SimpleConnection(Socket socket, DataProvider provider, int pid) throws IOException {
+    /**
+     * Creates a SimpleConnection.
+     *
+     * @param socket the socket the client is connected to.
+     * @param provider the data provider.
+     * @param pid the current process id. Sent to the client to make it able to
+     * cancel the request killing the current request.
+     * @param cancelCallback the function to be called when a cancel callback is
+     * received. The parameters are the processId and the secretKey received.
+     * @throws IOException
+     * @throws NullPointerException if any of the parameters is null.
+     */
+    public SimpleConnection(Socket socket, DataProvider provider, int pid, BiConsumer<Integer, Integer> cancelCallback) throws IOException, NullPointerException {
         super(socket);
         _processId = pid;
         _secretKey = (int) (Math.random() * Integer.MAX_VALUE);
         _provider = provider;
         _preparedStatements = new HashMap<>();
         _portals = new HashMap<>();
+        _cancelCallback = cancelCallback;
+        if (provider == null) {
+            throw new NullPointerException();
+        }
+        if (cancelCallback == null) {
+            throw new NullPointerException();
+        }
+    }
+
+    /**
+     * Creates a SimpleConnection. This is a convenience method that provides a
+     * default process id and a void callback that does nothing in case of a
+     * cancel request.
+     *
+     * @param socket the socket the client is connected to.
+     * @param provider the data provider.
+     * @throws IOException
+     * @throws NullPointerException if any of the parameters is null.
+     */
+    public SimpleConnection(Socket socket, DataProvider provider) throws IOException {
+        this(socket, provider, -1, (Integer a, Integer b) -> {
+        });
+    }
+
+    @Override
+    protected void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException, IOException {
+        _cancelCallback.accept(backendProcessId, secretKey);
     }
 
     @Override
@@ -112,7 +158,7 @@ public class SimpleConnection extends BaseConnection {
                      table.
                      Therefore we assume it is an integer and return an error message if not.
                      */
-                    ErrorResponse(makeError("42804", "Binary encoding not supported"));
+                    ErrorResponse(makeError("42804", "Binary encoding not supported. Set 'binaryTransfer' to false when connecting through JDBC" + (i + 1)));
                     return;
                 }
                 textVal = Integer.toString(Conversions.toInt(value));
@@ -140,11 +186,6 @@ public class SimpleConnection extends BaseConnection {
         } else {
             ErrorResponse(makeError("42602", "portal name already used"));
         }
-    }
-
-    @Override
-    protected void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException, IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
@@ -293,17 +334,17 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void CopyFail(String errorMessage) throws PgProtocolException, IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new PgProtocolException("Not supported");
     }
 
     @Override
     protected void CopyDataClientMsg(List<Byte> data) throws PgProtocolException, IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new PgProtocolException("Not supported");
     }
 
     @Override
     protected void CopyDoneClientMsg() throws PgProtocolException, IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new PgProtocolException("Not supported");
     }
 
     @Override
@@ -317,5 +358,21 @@ public class SimpleConnection extends BaseConnection {
          * combined into the minimum possible number of packets to minimize network
          * overhead.
          */
+    }
+
+    /**
+     * Closes the current connection if the current process id and secretKey
+     * matches the parameters.
+     *
+     * @param pid the provided process id.
+     * @param secretKey the provided secret key.
+     * @return true if the parameter match and the connection has been closed.
+     */
+    public boolean kill(int pid, int secretKey) {
+        if (_processId == pid && _secretKey == secretKey) {
+            kill();
+            return true;
+        }
+        return false;
     }
 }

@@ -3,6 +3,7 @@ package edu.purdue.jpgs;
 import java.sql.SQLException;
 
 /**
+ * Represents an error in the Postgres binary protocol.
  *
  * @author Lorenzo Bossi
  */

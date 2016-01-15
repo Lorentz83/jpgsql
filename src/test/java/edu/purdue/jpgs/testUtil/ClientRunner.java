@@ -33,6 +33,7 @@ public class ClientRunner extends BaseRunner {
         _properties = new Properties();
         _properties.setProperty("user", "fred");
         _properties.setProperty("password", "secret");
+        _properties.setProperty("binaryTransfer", "false");
         _func = func;
     }
 

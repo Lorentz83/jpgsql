@@ -1,37 +1,29 @@
 package edu.purdue.jpgs;
 
 import edu.purdue.jpgs.testUtil.ClientRunner;
-import edu.purdue.jpgs.testUtil.BaseConnectionRuner;
-
-import edu.purdue.jpgs.testUtil.DummyConnection;
 import edu.purdue.jpgs.testUtil.SimpleConnectionRunner;
 import edu.purdue.jpgs.testUtil.StrictMock;
 import edu.purdue.jpgs.type.DataCellMsg;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.collection.IsMapContaining.*;
 import org.junit.After;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import org.junit.Before;
 import org.junit.Test;
 import static org.mockito.Mockito.*;
-import org.postgresql.util.PSQLException;
 
 /**
  *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
-public class IntegrationTest {
+public class SimpleQuery_Queries_Test {
 
     private final int _portNumber = 8998;
     private final String _username = "fred";
@@ -42,124 +34,41 @@ public class IntegrationTest {
     DataProvider.QueryResult _table;
 
     private final StrictMock _strictMock = new StrictMock();
+    private ClientRunner client;
+    private SimpleConnectionRunner server;
 
     @Before
     public void init() throws IOException {
         _listener = new ServerSocket(_portNumber);
         _provider = mock(DataProvider.class, _strictMock);
         _table = mock(DataProvider.QueryResult.class, _strictMock);
-    }
-
-    @After
-    public void closeListener() throws IOException {
-        _listener.close();
-    }
-
-    @Test
-    public void startupMessage() throws Throwable {
-
-        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
-        });
-
-        BaseConnectionRuner server = new BaseConnectionRuner(_listener, (Socket s) -> {
-            try {
-                return new DummyConnection(s) {
-                    @Override
-                    protected boolean StartupMessage(int protocolVersion, Map<String, String> parameters) throws PgProtocolException, IOException {
-                        assertThat(parameters, hasEntry("user", _username));
-                        assertThat(parameters, hasEntry("database", _dbName));
-                        AuthenticationOk();
-                        return true;
-                    }
-                };
-            } catch (IOException ex) {
-                return null;
-            }
-        });
-        server.start();
-        client.start();
-
-        server.assertCompleted();
-        client.assertCompleted();
-    }
-
-    @Test
-    public void simpleQuery_askPasswordAndReject() throws Throwable {
-        when(_provider.setUser(_username)).thenReturn(false);
-        when(_provider.setPassword(_password)).thenReturn(false);
-
-        _strictMock.turnOn();
-
-        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
-        });
-
-        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
-
-        server.start();
-        client.start();
-
-        server.assertCompleted();
-        try {
-            client.assertCompleted();
-            fail("missing exception");
-        } catch (PSQLException ex) {
-            assertThat(ex.getMessage(), is("The connection attempt failed."));
-        }
-    }
-
-    @Test
-    public void simpleQuery_trustUserRejectDb() throws Throwable {
-
-        when(_provider.setUser(_username)).thenReturn(true);
-        when(_provider.setDatabase(_dbName)).thenReturn(false);
-
-        _strictMock.turnOn();
-
-        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
-        });
-
-        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
-
-        server.start();
-        client.start();
-
-        server.assertCompleted();
-        try {
-            client.assertCompleted();
-            fail("missing exception");
-        } catch (PSQLException ex) {
-            assertThat(ex.getMessage(), is("ERROR: database \"test\" does not exist"));
-        }
-    }
-
-    @Test
-    public void simpleQuery_acceptUserRejectDb() throws Throwable {
 
         when(_provider.setUser(_username)).thenReturn(true);
         when(_provider.setPassword(_password)).thenReturn(true);
-        when(_provider.setDatabase(_dbName)).thenReturn(false);
+        when(_provider.setDatabase(_dbName)).thenReturn(true);
+    }
 
-        _strictMock.turnOn();
-
-        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
-        });
-
-        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
-
-        server.start();
-        client.start();
-
-        server.assertCompleted();
+    @After
+    public void check() throws IOException, Throwable {
         try {
+            server = new SimpleConnectionRunner(_listener, _provider);
+
+            server.start();
+            client.start();
+
+            server.assertCompleted();
             client.assertCompleted();
-            fail("missing exception");
-        } catch (PSQLException ex) {
-            assertThat(ex.getMessage(), is("ERROR: database \"test\" does not exist"));
+        } finally {
+            _listener.close();
         }
     }
 
+    private void setUpClient(final ClientRunner.SqlCommands c) {
+        client = new ClientRunner(_username, _password, _dbName, _portNumber, c);
+    }
+
     @Test
-    public void simpleQuery_select() throws Throwable {
+    public void statementSelect() throws Throwable {
         final String query = "select * from table";
         List<String> header = new ArrayList<>();
         header.add("col1");
@@ -174,10 +83,6 @@ public class IntegrationTest {
         rows.add(row1);
         rows.add(row2);
 
-        when(_provider.setUser(_username)).thenReturn(true);
-        when(_provider.setPassword(_password)).thenReturn(true);
-        when(_provider.setDatabase(_dbName)).thenReturn(true);
-
         when(_provider.getResult(query)).thenReturn(_table);
         when(_table.getHeader()).thenReturn(header);
         when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.SELECT);
@@ -187,7 +92,7 @@ public class IntegrationTest {
 
         _strictMock.turnOn();
 
-        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
+        setUpClient((Connection conn) -> {
             Statement stm = conn.createStatement();
             try (ResultSet rs = stm.executeQuery(query)) {
                 assertThat(rs.getMetaData().getColumnName(1), is("col1"));
@@ -203,17 +108,10 @@ public class IntegrationTest {
             }
         });
 
-        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
-
-        server.start();
-        client.start();
-
-        server.assertCompleted();
-        client.assertCompleted();
     }
 
     @Test
-    public void simpleQuery_preparedStatementSelect() throws Throwable {
+    public void preparedStatementSelect() throws Throwable {
         List<String> header = new ArrayList<>();
         header.add("col1");
         header.add("col2");
@@ -227,10 +125,6 @@ public class IntegrationTest {
         rows.add(row1);
         rows.add(row2);
 
-        when(_provider.setUser(_username)).thenReturn(true);
-        when(_provider.setPassword(_password)).thenReturn(true);
-        when(_provider.setDatabase(_dbName)).thenReturn(true);
-
         when(_provider.getResult("select * from tbl where f > '65024'")).thenReturn(_table);
         when(_provider.getResult("select * from tbl where f > '25'")).thenReturn(_table);
         when(_table.getHeader()).thenReturn(header);
@@ -241,7 +135,7 @@ public class IntegrationTest {
 
         _strictMock.turnOn();
 
-        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
+        setUpClient((Connection conn) -> {
             PreparedStatement stm = conn.prepareStatement("select * from tbl where f > ?");
             stm.setInt(1, 65024);
             try (ResultSet rs = stm.executeQuery()) {
@@ -262,41 +156,57 @@ public class IntegrationTest {
             }
         });
 
-        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
-
-        server.start();
-        client.start();
-
-        server.assertCompleted();
-        client.assertCompleted();
     }
 
     @Test
-    public void simpleQuery_preparedStatementTypes() throws Throwable {
-        when(_provider.setUser(_username)).thenReturn(true);
-        when(_provider.setPassword(_password)).thenReturn(true);
-        when(_provider.setDatabase(_dbName)).thenReturn(true);
-
+    public void preparedStatementTypes() throws Throwable {
         when(_provider.getResult("delete from tbl where f1 = '10' AND f2 = 'a \" quoted '' string'")).thenReturn(_table);
         when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.DELETE);
         when(_table.getRowCount()).thenReturn(3);
 
         _strictMock.turnOn();
 
-        ClientRunner client = new ClientRunner(_username, _password, _dbName, _portNumber, (Connection conn) -> {
+        setUpClient((Connection conn) -> {
             PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = ? AND f2 = ?");
             stm.setInt(1, 10);  // 4
             stm.setString(2, "a \" quoted ' string"); //19
             stm.execute();
         });
 
-        SimpleConnectionRunner server = new SimpleConnectionRunner(_listener, _provider);
-
-        server.start();
-        client.start();
-
-        server.assertCompleted();
-        client.assertCompleted();
-
     }
+
+    @Test
+    public void preparedStatementAllTypes() throws Throwable {
+        when(_provider.getResult("delete from tbl where f1 = '1' AND f2 = '2' AND f3 = '3.3' AND f4 = '4.4' AND f5 = 'str'")).thenReturn(_table);
+        when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.DELETE);
+        when(_table.getRowCount()).thenReturn(3);
+
+        _strictMock.turnOn();
+
+        setUpClient((Connection conn) -> {
+            PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = ? AND f2 = ? AND f3 = ? AND f4 = ? AND f5 = ?");
+            stm.setInt(1, 1);  // 4
+            stm.setLong(2, 2);
+            stm.setDouble(3, 3.3);
+            stm.setFloat(4, 4.4f);
+            stm.setString(5, "str"); //19
+            stm.execute();
+        });
+    }
+
+    @Test
+    public void preparedStatementQuotedQuestionMark() throws Throwable {
+        when(_provider.getResult("delete from tbl where f1 = 'seriously?' and f2 = 'param'")).thenReturn(_table);
+        when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.DELETE);
+        when(_table.getRowCount()).thenReturn(3);
+
+        _strictMock.turnOn();
+
+        setUpClient((Connection conn) -> {
+            PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = 'seriously?' and f2 = ?");
+            stm.setString(1, "param");
+            stm.execute();
+        });
+    }
+
 }
