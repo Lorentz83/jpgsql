@@ -200,7 +200,7 @@ public abstract class BaseConnection {
     /**
      * @ingroup postgresSimpleQuery
      */
-    protected void CopyOutResponse(byte format, List<Short> formats) throws PgProtocolException, IOException {
+    protected void CopyOutResponse(byte format, Collection<Short> formats) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('H')) {
             writer.addInt8(format);
             writer.addInt16((short) formats.size());
@@ -214,11 +214,11 @@ public abstract class BaseConnection {
      * Sends a row description message. This message must be sent before
      * #DataRow is used, whenever a query returns some data.
      *
-     * @param tableHeader a list of ColumnDescriptionMsg to describe the table
-     * header.
+     * @param tableHeader a collection of ColumnDescriptionMsg to describe the
+     * table header.
      * @ingroup postgresSimpleQuery
      */
-    protected void RowDescription(List<ColumnDescriptionMsg> tableHeader) throws PgProtocolException, IOException {
+    protected void RowDescription(Collection<ColumnDescriptionMsg> tableHeader) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('T')) {
             writer.addInt16((short) tableHeader.size());
             for (ColumnDescriptionMsg it : tableHeader) {
@@ -237,10 +237,11 @@ public abstract class BaseConnection {
      * Sends a data row message. It sends one row of the returned table. Must be
      * called after a #RowDescription.
      *
-     * @param data a list of items, one per each column of the table returned.
+     * @param data a collection of items, one per each column of the table
+     * returned.
      * @ingroup postgresSimpleQuery
      */
-    protected void DataRow(List<DataCellMsg> data) throws PgProtocolException, IOException {
+    protected void DataRow(Collection<DataCellMsg> data) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('D')) {
             writer.addInt16((short) data.size());
             for (DataCellMsg it : data) {
@@ -270,10 +271,10 @@ public abstract class BaseConnection {
      * level of messages (user readable, not localized, debug...). Refer to the
      * postgres documentation for the mandatory messages.
      *
-     * @param messages list of error messages.
+     * @param messages collection of error messages.
      * @ingroup postgresSimpleQuery
      */
-    protected void ErrorResponse(List<ErrorResponseMsg> messages) throws PgProtocolException, IOException {
+    protected void ErrorResponse(Collection<ErrorResponseMsg> messages) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('E')) {
             for (ErrorResponseMsg it : messages) {
                 writer.addInt8(it.type);
@@ -311,7 +312,7 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void FunctionCallResponse(List<Byte> result) throws PgProtocolException, IOException {
+    protected void FunctionCallResponse(Collection<Byte> result) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('V')) {
             writer.addInt32(result.size());
             for (Byte b : result) {
@@ -334,7 +335,7 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void ParameterDescription(List<Integer> parametersId) throws PgProtocolException, IOException {
+    protected void ParameterDescription(Collection<Integer> parametersId) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('t')) {
             writer.addInt32(parametersId.size());
             for (int id : parametersId) {
@@ -350,7 +351,7 @@ public abstract class BaseConnection {
         }
     }
 
-    protected void CopyBothResponse(byte format, List<Short> formats) throws PgProtocolException, IOException {
+    protected void CopyBothResponse(byte format, Collection<Short> formats) throws PgProtocolException, IOException {
         try (PgWriter writer = getWriter('W')) {
             writer.addInt8(format);
             writer.addInt16((short) formats.size());

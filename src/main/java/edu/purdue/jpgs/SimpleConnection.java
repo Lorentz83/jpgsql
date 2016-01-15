@@ -8,16 +8,19 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 /**
  * Abstracts most of the complicated messages defined by the Postgres protocol
  * giving an easier interface to interact. Note, to correctly handle all data
  * types set 'binaryTransfer' to false when connecting through JDBC. To use this
  * class just implement a {@link DataProvider}, pass it to the constructor and
- * execute {@link #run() } to start the protocol execution.
+ * execute {@link #run() } to start the protocol execution. This class supports
+ * only authentication with clear text password.
  *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
@@ -287,8 +290,13 @@ public class SimpleConnection extends BaseConnection {
                 break;
             case SELECT: {
                 int rows = 0;
-                for (List<DataCellMsg> row : table.getRows()) {
-                    DataRow(row);
+                Iterator<List<String>> it = table.getRows();
+                while (it.hasNext()) {
+                    List<DataCellMsg> rawRow = it.next().stream().map(str -> {
+                        return (str == null) ? new DataCellMsg() : new DataCellMsg(str);
+                    }).collect(Collectors.toList());
+
+                    DataRow(rawRow);
                     if (++rows == maxRows) {
                         //TODO enable the PortalSuspended() messages
                         ErrorResponse(makeError("0A000", "PortalSuspend is not supported"));

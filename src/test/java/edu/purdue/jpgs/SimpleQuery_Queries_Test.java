@@ -2,17 +2,21 @@ package edu.purdue.jpgs;
 
 import edu.purdue.jpgs.testUtil.ClientRunner;
 import edu.purdue.jpgs.testUtil.SimpleConnectionRunner;
+import static edu.purdue.jpgs.testUtil.SimpleConversion.row;
+import static edu.purdue.jpgs.testUtil.SimpleConversion.table;
 import edu.purdue.jpgs.testUtil.StrictMock;
-import edu.purdue.jpgs.type.DataCellMsg;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.emptyString;
 import org.junit.After;
 import static org.junit.Assert.assertThat;
 import org.junit.Before;
@@ -70,18 +74,8 @@ public class SimpleQuery_Queries_Test {
     @Test
     public void statementSelect() throws Throwable {
         final String query = "select * from table";
-        List<String> header = new ArrayList<>();
-        header.add("col1");
-        header.add("col2");
-        List<DataCellMsg> row1 = new ArrayList<>();
-        row1.add(new DataCellMsg("1 1"));
-        row1.add(new DataCellMsg("1 2"));
-        List<DataCellMsg> row2 = new ArrayList<>();
-        row2.add(new DataCellMsg("2 1"));
-        row2.add(new DataCellMsg("2 2"));
-        List<List<DataCellMsg>> rows = new ArrayList<>();
-        rows.add(row1);
-        rows.add(row2);
+        List<String> header = Arrays.asList("col1", "col2");
+        Iterator<List<String>> rows = table(row("1 1", "1 2"), row("2 1", "2 2"), row("", null));
 
         when(_provider.getResult(query)).thenReturn(_table);
         when(_table.getHeader()).thenReturn(header);
@@ -104,6 +98,9 @@ public class SimpleQuery_Queries_Test {
                     assertThat(rs.getString("col1"), is(String.format("%s %s", r, 1)));
                     assertThat(rs.getString("col2"), is(String.format("%s %s", r, 2)));
                 }
+                assertThat(rs.next(), is(true));
+                assertThat(rs.getString("col1"), is(emptyString()));
+                assertThat(rs.getString("col2"), is(nullValue()));
                 assertThat(rs.next(), is(false));
             }
         });
@@ -112,18 +109,8 @@ public class SimpleQuery_Queries_Test {
 
     @Test
     public void preparedStatementSelect() throws Throwable {
-        List<String> header = new ArrayList<>();
-        header.add("col1");
-        header.add("col2");
-        List<DataCellMsg> row1 = new ArrayList<>();
-        row1.add(new DataCellMsg("1 1"));
-        row1.add(new DataCellMsg("1 2"));
-        List<DataCellMsg> row2 = new ArrayList<>();
-        row2.add(new DataCellMsg("2 1"));
-        row2.add(new DataCellMsg("2 2"));
-        List<List<DataCellMsg>> rows = new ArrayList<>();
-        rows.add(row1);
-        rows.add(row2);
+        List<String> header = Arrays.asList("col1", "col2");
+        Iterator<List<String>> rows = table(row("1 1", "1 2"), row("2 1", "2 2"));
 
         when(_provider.getResult("select * from tbl where f > '65024'")).thenReturn(_table);
         when(_provider.getResult("select * from tbl where f > '25'")).thenReturn(_table);
