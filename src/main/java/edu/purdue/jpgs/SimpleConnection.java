@@ -4,10 +4,11 @@ import edu.purdue.jpgs.type.ColumnDescriptionMsg;
 import edu.purdue.jpgs.type.Conversions;
 import edu.purdue.jpgs.type.DataCellMsg;
 import static edu.purdue.jpgs.type.ErrorResponseMsg.makeError;
+import edu.purdue.jpgs.utils.Portal;
+import edu.purdue.jpgs.utils.StatementAndPortal;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -35,9 +36,8 @@ public class SimpleConnection extends BaseConnection {
     protected String _database;
     private final int _processId, _secretKey;
     private final DataProvider _provider;
-    private final Map<String, String> _preparedStatements;
-    private final Map<String, Portal> _portals;
     private final BiConsumer<Integer, Integer> _cancelCallback;
+    private final StatementAndPortal _stm;
 
     /**
      * Creates a SimpleConnection.
@@ -56,9 +56,8 @@ public class SimpleConnection extends BaseConnection {
         _processId = pid;
         _secretKey = (int) (Math.random() * Integer.MAX_VALUE);
         _provider = provider;
-        _preparedStatements = new HashMap<>();
-        _portals = new HashMap<>();
         _cancelCallback = cancelCallback;
+        _stm = new StatementAndPortal();
         if (provider == null) {
             throw new NullPointerException();
         }
@@ -126,8 +125,8 @@ public class SimpleConnection extends BaseConnection {
         /**
          * @todo the query string may contain multiple sql statements
          */
-        _preparedStatements.remove(""); //erase the unnamed statement and portal
-        _portals.remove("");
+        _stm.removeStatementCascade(""); //erase the unnamed statement and portal
+        _stm.removePortal("");
         query = query.trim();
         if (!respondToEmptyQuery(query)) {
             DataProvider.QueryResult table = _provider.getResult(query);
@@ -141,7 +140,7 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void Bind(String portalName, String preparedStatment, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException, IOException {
-        String statement = _preparedStatements.get(preparedStatment);
+        String statement = _stm.getStatementSql(preparedStatment);
         if (statement == null) {
             ErrorResponse(makeError("26000", "unknown statement name"));
             return;
@@ -181,10 +180,9 @@ public class SimpleConnection extends BaseConnection {
         try {
             String realQuery = Conversions.bind(statement, vals);
             if (portalName.equals("")) {
-                _portals.remove(""); //destroy the unnamed portal.
+                _stm.removePortal(""); //destroy the unnamed portal.
             }
-            if (!_portals.containsKey(portalName)) {
-                _portals.put(portalName, new Portal(realQuery));
+            if (_stm.putPortal(preparedStatment, portalName, realQuery)) {
                 BindComplete();
             } else {
                 ErrorResponse(makeError("42602", "portal name already used"));
@@ -207,10 +205,10 @@ public class SimpleConnection extends BaseConnection {
          */
         switch (what) {
             case 'S':
-                _preparedStatements.remove(name); //!>@todo close the related _portals too
+                _stm.removeStatementCascade(name);
                 break;
             case 'P':
-                _portals.remove(name);
+                _stm.removePortal(name);
                 break;
             default:
                 throw new PgProtocolException("Unrecognized close command " + what);
@@ -220,15 +218,13 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void Execute(String portalName, int maxRows) throws PgProtocolException, IOException {
-        Portal portal = _portals.get(portalName);
+        Portal portal = _stm.getPortal(portalName);
         if (portal == null) {
             ErrorResponse(makeError("42602", "unknown portal name"));
         } else {
             if (!respondToEmptyQuery(portal.sql)) {
-                if (portal.result == null) {
-                    portal.result = _provider.getResult(portal.sql);
-                }
-                sendQueryResult(portal.result, maxRows);
+                DataProvider.QueryResult res = portal.getAndStoreResult(_provider);
+                sendQueryResult(res, maxRows);
             }
         }
     }
@@ -241,10 +237,9 @@ public class SimpleConnection extends BaseConnection {
     @Override
     protected void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException, IOException {
         if (preparedStatment.isEmpty()) {
-            _preparedStatements.remove(preparedStatment);
+            _stm.removeStatementCascade(preparedStatment);
         }
-        if (!_preparedStatements.containsKey(preparedStatment)) {
-            _preparedStatements.put(preparedStatment, query);
+        if (_stm.putStatement(preparedStatment, query)) {
             ParseComplete();
         } else {
             ErrorResponse(makeError("26000", "the statement already exists"));
@@ -318,16 +313,14 @@ public class SimpleConnection extends BaseConnection {
                 ErrorResponse(makeError("0A000", "unsupported feature: describe prepared statement"));
                 break;
             case 'P': // portal
-                Portal portal = _portals.get(name);
+                Portal portal = _stm.getPortal(name);
                 if (portal == null) {
                     ErrorResponse(makeError("42602", "unknown portal name"));
                 } else {
-                    if (portal.result == null) {
-                        portal.result = _provider.getResult(portal.sql);
-                        //TODO check for empty query
-                    }
-                    if (portal.result.getType() == DataProvider.QueryResult.Type.SELECT) {
-                        RowDescription(getTableHeader(portal.result.getHeader()));
+                    DataProvider.QueryResult res = portal.getAndStoreResult(_provider);
+                    //TODO check for empty query
+                    if (res.getType() == DataProvider.QueryResult.Type.SELECT) {
+                        RowDescription(getTableHeader(res.getHeader()));
                     } else {
                         NoData();
                     }
@@ -381,15 +374,5 @@ public class SimpleConnection extends BaseConnection {
             return true;
         }
         return false;
-    }
-}
-
-class Portal {
-
-    public final String sql;
-    public DataProvider.QueryResult result;
-
-    public Portal(String sql) {
-        this.sql = sql;
     }
 }
