@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -427,6 +428,19 @@ public abstract class BaseConnection {
      */
     protected abstract void Query(String query) throws PgProtocolException, IOException;
 
+    /**
+     * A bind command was received. Note that (unless Postgres message), it is
+     * guaranteed that parameterFormatCodes and parameterValues have the same
+     * size.
+     *
+     * @param portalName
+     * @param preparedStatment
+     * @param parameterFormatCodes
+     * @param parameterValues
+     * @param resultFormatCodes
+     * @throws PgProtocolException
+     * @throws IOException
+     */
     protected abstract void Bind(String portalName, String preparedStatment, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException, IOException;
 
     protected abstract void CancelRequest(int backendProcessId, int secretKey) throws PgProtocolException, IOException;
@@ -492,13 +506,6 @@ public abstract class BaseConnection {
                         String portal = reader.readString();
                         String preparedStatement = reader.readString();
                         Short parameterNum = reader.readInt16();
-                        /* TODO The number of parameter format codes that follow (denoted C below).
-                         This can be zero to indicate that there are no parameters
-                         or that the parameters all use the default format (text);
-                         or one, in which case the specified format code is applied to all parameters;
-                         or it can equal the actual number of parameters.
-                         */
-
                         List<Short> parameterFormats = reader.readInt16List(parameterNum);
                         Short parameterValNum = reader.readInt16();
                         List<List<Byte>> parameters = new ArrayList<>();
@@ -507,7 +514,13 @@ public abstract class BaseConnection {
                             parameters.add(reader.readByteList(parLen));
                         }
                         List<Short> resultFormatCodes = reader.readInt16List(reader.readInt16());
-
+                        if (parameterNum == 0) {
+                            parameterFormats = Collections.nCopies(parameters.size(), (short) 0);
+                        }
+                        if (parameterNum == 1) {
+                            short def = parameterFormats.get(0);
+                            parameterFormats = Collections.nCopies(parameters.size(), def);
+                        }
                         Bind(portal, preparedStatement, parameterFormats, parameters, resultFormatCodes);
                         break;
                     }

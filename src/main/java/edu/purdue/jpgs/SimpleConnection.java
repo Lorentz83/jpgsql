@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +33,8 @@ import java.util.stream.Collectors;
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
 public class SimpleConnection extends BaseConnection {
+
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(SimpleConnection.class.getName());
 
     protected String _database;
     private final int _processId, _secretKey;
@@ -150,6 +153,7 @@ public class SimpleConnection extends BaseConnection {
         for (short res : resultFormatCodes) {
             if (res == 1) {
                 ErrorResponse(makeError("0A000", "unsupported binary result format"));
+                LOGGER.log(Level.SEVERE, "The client requested a bynary result");
                 //!> @todo support binary result format
             }
         }
@@ -168,7 +172,8 @@ public class SimpleConnection extends BaseConnection {
                      table.
                      Therefore we assume it is an integer and return an error message if not.
                      */
-                    ErrorResponse(makeError("42804", "Binary encoding not supported. Set 'binaryTransfer' to false when connecting through JDBC" + (i + 1)));
+                    LOGGER.log(Level.SEVERE, "The client provided data in a bynary format. Set 'binaryTransfer' to false when connecting through JDBC");
+                    ErrorResponse(makeError("42804", "Binary encoding not supported. Set 'binaryTransfer' to false when connecting through JDBC"));
                     return;
                 }
                 textVal = Integer.toString(Conversions.toInt(value));
@@ -213,6 +218,7 @@ public class SimpleConnection extends BaseConnection {
                 _stm.removePortal(name);
                 break;
             default:
+                LOGGER.log(Level.SEVERE, "Unrecognized close command {0}", what);
                 throw new PgProtocolException("Unrecognized close command " + what);
         }
         CloseComplete();
@@ -235,6 +241,7 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void FunctionCall(int objectId, List<Short> argumentFormats, List<DataCellMsg> arguments, Short resultFormat) throws PgProtocolException, IOException {
+        LOGGER.log(Level.SEVERE, "The client asked for a deprecated FunctionCall");
         ErrorResponse(makeError("Not supported"));
     }
 
@@ -346,16 +353,19 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void CopyFail(String errorMessage) throws PgProtocolException, IOException {
+        LOGGER.log(Level.SEVERE, "Copy operations are not implemented");
         throw new PgProtocolException("Not supported");
     }
 
     @Override
     protected void CopyDataClientMsg(List<Byte> data) throws PgProtocolException, IOException {
+        LOGGER.log(Level.SEVERE, "Copy operations are not implemented");
         throw new PgProtocolException("Not supported");
     }
 
     @Override
     protected void CopyDoneClientMsg() throws PgProtocolException, IOException {
+        LOGGER.log(Level.SEVERE, "Copy operations are not implemented");
         throw new PgProtocolException("Not supported");
     }
 
