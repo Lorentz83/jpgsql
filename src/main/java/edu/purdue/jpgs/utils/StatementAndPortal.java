@@ -17,20 +17,38 @@ public class StatementAndPortal {
     Map<String, Statement> _statements = new HashMap<>();
     Map<String, Portal> _portals = new HashMap<>();
 
-    public void removeStatementCascade(String statementName) {
+    /**
+     * Removes the specified statement and all the related portals.
+     *
+     * @param statementName the name of the statement.
+     * @return true if the statement has been removed, false if no such
+     * statement existed.
+     */
+    public boolean removeStatementCascade(String statementName) {
         Statement stm = _statements.remove(statementName);
         if (stm != null) {
             for (String portal : stm.portals) {
                 _portals.remove(portal);
             }
+            return true;
         }
+        return false;
     }
 
-    public void removePortal(String portalName) {
+    /**
+     * Removes the specified portal.
+     *
+     * @param portalName the name of the portal.
+     * @return true if the portal has been removed, false if no such portal
+     * existed.
+     */
+    public boolean removePortal(String portalName) {
         Portal portal = _portals.remove(portalName);
         if (portal != null) {
             _statements.get(portal.originalStatement).portals.remove(portalName);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -71,10 +89,23 @@ public class StatementAndPortal {
         return true;
     }
 
+    /**
+     * Returns the specified portal or null if it does not exist.
+     *
+     * @param portalName the name of the portal.
+     * @return the portal or null.
+     */
     public Portal getPortal(String portalName) {
         return _portals.get(portalName);
     }
 
+    /**
+     * Returns the SQL associated to the statement or null if the statement does
+     * not exist.
+     *
+     * @param statementName the name of the statement.
+     * @return the SQL or null.
+     */
     public String getStatementSql(String statementName) {
         Statement stm = _statements.get(statementName);
         return stm == null ? null : stm.query;
@@ -82,6 +113,11 @@ public class StatementAndPortal {
 
 }
 
+/**
+ * A simple container to link the statement to the portals associated.
+ *
+ * @author Lorenzo Bossi [lbossi@purdue.edu]
+ */
 class Statement {
 
     public final String query;
