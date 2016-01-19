@@ -36,8 +36,7 @@ public class SimpleConnection extends BaseConnection {
     private final int _processId, _secretKey;
     private final DataProvider _provider;
     private final Map<String, String> _preparedStatements;
-    private final Map<String, String> _portalStrings;
-    private final Map<String, DataProvider.QueryResult> _portalResults;
+    private final Map<String, Portal> _portals;
     private final BiConsumer<Integer, Integer> _cancelCallback;
 
     /**
@@ -58,8 +57,7 @@ public class SimpleConnection extends BaseConnection {
         _secretKey = (int) (Math.random() * Integer.MAX_VALUE);
         _provider = provider;
         _preparedStatements = new HashMap<>();
-        _portalStrings = new HashMap<>();
-        _portalResults = new HashMap<>();
+        _portals = new HashMap<>();
         _cancelCallback = cancelCallback;
         if (provider == null) {
             throw new NullPointerException();
@@ -129,8 +127,7 @@ public class SimpleConnection extends BaseConnection {
          * @todo the query string may contain multiple sql statements
          */
         _preparedStatements.remove(""); //erase the unnamed statement and portal
-        _portalStrings.remove("");
-        _portalResults.remove("");
+        _portals.remove("");
         query = query.trim();
         if (!respondToEmptyQuery(query)) {
             DataProvider.QueryResult table = _provider.getResult(query);
@@ -184,12 +181,10 @@ public class SimpleConnection extends BaseConnection {
         try {
             String realQuery = Conversions.bind(statement, vals);
             if (portalName.equals("")) {
-                _portalStrings.remove(""); //destroy the unnamed portal.
-                _portalResults.remove("");
+                _portals.remove(""); //destroy the unnamed portal.
             }
-            if (!_portalStrings.containsKey(portalName)) {
-                _portalStrings.put(portalName, realQuery);
-                _portalResults.remove(portalName);
+            if (!_portals.containsKey(portalName)) {
+                _portals.put(portalName, new Portal(realQuery));
                 BindComplete();
             } else {
                 ErrorResponse(makeError("42602", "portal name already used"));
@@ -215,8 +210,7 @@ public class SimpleConnection extends BaseConnection {
                 _preparedStatements.remove(name); //!>@todo close the related _portals too
                 break;
             case 'P':
-                _portalStrings.remove(name);
-                _portalResults.remove(name);
+                _portals.remove(name);
                 break;
             default:
                 throw new PgProtocolException("Unrecognized close command " + what);
@@ -226,17 +220,15 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void Execute(String portalName, int maxRows) throws PgProtocolException, IOException {
-        String query = _portalStrings.get(portalName);
-        if (query == null) {
+        Portal portal = _portals.get(portalName);
+        if (portal == null) {
             ErrorResponse(makeError("42602", "unknown portal name"));
         } else {
-            if (!respondToEmptyQuery(query)) {
-                DataProvider.QueryResult result = _portalResults.get(portalName);
-                if (result == null) {
-                    result = _provider.getResult(query);
-                    _portalResults.put(query, result);
+            if (!respondToEmptyQuery(portal.sql)) {
+                if (portal.result == null) {
+                    portal.result = _provider.getResult(portal.sql);
                 }
-                sendQueryResult(result, maxRows);
+                sendQueryResult(portal.result, maxRows);
             }
         }
     }
@@ -326,17 +318,16 @@ public class SimpleConnection extends BaseConnection {
                 ErrorResponse(makeError("0A000", "unsupported feature: describe prepared statement"));
                 break;
             case 'P': // portal
-                String q = _portalStrings.get(name);
-                if (q == null) {
+                Portal portal = _portals.get(name);
+                if (portal == null) {
                     ErrorResponse(makeError("42602", "unknown portal name"));
                 } else {
-                    DataProvider.QueryResult result = _portalResults.get(name);
-                    if (result == null) {
-                        result = _provider.getResult(q);
-                        _portalResults.put(q, result);
+                    if (portal.result == null) {
+                        portal.result = _provider.getResult(portal.sql);
+                        //TODO check for empty query
                     }
-                    if (result.getType() == DataProvider.QueryResult.Type.SELECT) {
-                        RowDescription(getTableHeader(result.getHeader()));
+                    if (portal.result.getType() == DataProvider.QueryResult.Type.SELECT) {
+                        RowDescription(getTableHeader(portal.result.getHeader()));
                     } else {
                         NoData();
                     }
@@ -390,5 +381,15 @@ public class SimpleConnection extends BaseConnection {
             return true;
         }
         return false;
+    }
+}
+
+class Portal {
+
+    public final String sql;
+    public DataProvider.QueryResult result;
+
+    public Portal(String sql) {
+        this.sql = sql;
     }
 }
