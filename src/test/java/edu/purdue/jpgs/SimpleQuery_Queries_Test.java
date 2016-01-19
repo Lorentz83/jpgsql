@@ -199,6 +199,19 @@ public class SimpleQuery_Queries_Test {
     }
 
     @Test
+    public void emptyQuery() throws Throwable {
+        _strictMock.turnOn();
+        setUpClient((Connection conn) -> {
+            Statement stm;
+            stm = conn.createStatement();
+            assertThat(stm.execute(""), is(false));
+            assertThat(stm.execute(" "), is(false));
+            assertThat(stm.execute(";"), is(false));
+            assertThat(stm.execute(" ; "), is(false));
+        });
+    }
+
+    @Test
     public void preparedStatement_MaxRows() throws Throwable {
         final String query = "select * from table";
         List<String> header = Arrays.asList("col1");

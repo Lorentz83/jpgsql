@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
+import org.postgresql.jdbc42.Jdbc42Connection;
 
 /**
  *
@@ -23,7 +24,7 @@ public class ClientRunner extends BaseRunner {
 
     @Override
     protected void testCode() throws Throwable {
-        try (Connection conn = DriverManager.getConnection(_url, _properties)) {
+        try (Jdbc42Connection conn = (Jdbc42Connection) DriverManager.getConnection(_url, _properties)) {
             _func.accept(conn);
         }
     }

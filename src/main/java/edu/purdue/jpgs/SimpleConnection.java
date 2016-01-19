@@ -128,7 +128,9 @@ public class SimpleConnection extends BaseConnection {
         _stm.removeStatementCascade(""); //erase the unnamed statement and portal
         _stm.removePortal("");
         query = query.trim();
-        if (!respondToEmptyQuery(query)) {
+        if (isEmptyQuery(query)) {
+            EmptyQueryResponse();
+        } else {
             DataProvider.QueryResult table = _provider.getResult(query);
             if (table.getType() == DataProvider.QueryResult.Type.SELECT) {
                 RowDescription(getTableHeader(table.getHeader()));
@@ -222,7 +224,9 @@ public class SimpleConnection extends BaseConnection {
         if (portal == null) {
             ErrorResponse(makeError("42602", "unknown portal name"));
         } else {
-            if (!respondToEmptyQuery(portal.sql)) {
+            if (isEmptyQuery(portal.sql)) {
+                EmptyQueryResponse();
+            } else {
                 DataProvider.QueryResult res = portal.getAndStoreResult(_provider);
                 sendQueryResult(res, maxRows);
             }
@@ -251,12 +255,8 @@ public class SimpleConnection extends BaseConnection {
         ReadyForQuery('I'); //we don't implement transactions
     }
 
-    private boolean respondToEmptyQuery(String query) throws PgProtocolException, IOException {
-        if (query.isEmpty() || query.equals(";")) {
-            EmptyQueryResponse();
-            return true;
-        }
-        return false;
+    private boolean isEmptyQuery(String query) {
+        return query.isEmpty() || query.equals(";");
     }
 
     private List<ColumnDescriptionMsg> getTableHeader(List<String> headerNames) {
@@ -313,16 +313,28 @@ public class SimpleConnection extends BaseConnection {
                 ErrorResponse(makeError("0A000", "unsupported feature: describe prepared statement"));
                 break;
             case 'P': // portal
+                /*
+                 * The Describe message (portal variant) specifies the name of
+                 * an existing portal (or an empty string for the unnamed
+                 * portal). The response is a RowDescription message describing
+                 * the rows that will be returned by executing the portal; or a
+                 * NoData message if the portal does not contain a query that
+                 * will return rows; or ErrorResponse if there is no such
+                 * portal.
+                 */
                 Portal portal = _stm.getPortal(name);
                 if (portal == null) {
                     ErrorResponse(makeError("42602", "unknown portal name"));
                 } else {
-                    DataProvider.QueryResult res = portal.getAndStoreResult(_provider);
-                    //TODO check for empty query
-                    if (res.getType() == DataProvider.QueryResult.Type.SELECT) {
-                        RowDescription(getTableHeader(res.getHeader()));
-                    } else {
+                    if (isEmptyQuery(portal.sql)) {
                         NoData();
+                    } else {
+                        DataProvider.QueryResult res = portal.getAndStoreResult(_provider);
+                        if (res.getType() == DataProvider.QueryResult.Type.SELECT) {
+                            RowDescription(getTableHeader(res.getHeader()));
+                        } else {
+                            NoData();
+                        }
                     }
                 }
                 break;
