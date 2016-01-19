@@ -61,11 +61,6 @@ public class DummyConnection extends BaseConnection {
     }
 
     @Override
-    protected void Flush() throws PgProtocolException, IOException {
-        fail("Flush should not be called");
-    }
-
-    @Override
     protected void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException, IOException {
         fail("Parse should not be called");
     }
