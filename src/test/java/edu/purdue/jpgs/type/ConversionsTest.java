@@ -1,6 +1,8 @@
 package edu.purdue.jpgs.type;
 
+import edu.purdue.jpgs.PgProtocolException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -58,6 +60,60 @@ public class ConversionsTest {
 
         val = createByteList('1', 0, '2');
         assertThat(Conversions.toString(val), is("1\u00002"));
+    }
+
+    @Test
+    public void bind_success() throws PgProtocolException {
+        assertThat(Conversions.bind("any string here", new ArrayList<>()), is("any string here"));
+        assertThat(Conversions.bind("select ($1, $2=$3)", stringList("a", "b", "c")), is("select (a, b=c)"));
+        assertThat(Conversions.bind("select ($3, $2=$1)", stringList("a", "b", "c")), is("select (c, b=a)"));
+        assertThat(Conversions.bind("select 'a $tring'' $0, $1, $2' $1", stringList("@@")), is("select 'a $tring'' $0, $1, $2' @@"));
+    }
+
+    @Test
+    public void bind_moreThan10() throws PgProtocolException {
+        List<String> vals = new ArrayList<>();
+
+        StringBuilder stm = new StringBuilder("SELECT ");
+        StringBuilder query = new StringBuilder("SELECT ");
+
+        for (int i = 15; i >= 1; i--) {
+            stm.append("$").append(i).append(" ");
+            char v = (char) ('a' + i);
+            vals.add("" + v);
+        }
+        for (int i = 1; i <= 15; i++) {
+            char v = (char) ('a' + i);
+            query.append(v).append(" ");
+        }
+        assertThat(Conversions.bind(stm.toString(), vals), is(query.toString()));
+    }
+
+    @Test
+    public void bind_errors() throws PgProtocolException {
+        try {
+            Conversions.bind("select where a = $1", stringList("a", "b"));
+            fail("missing exception");
+        } catch (PgProtocolException ex) {
+            assertThat(ex.getMessage(), is("missing placeholder for parameter number 2"));
+        }
+
+        try {
+            Conversions.bind("select where a = $1 b = $2", new ArrayList<>());
+            fail("missing exception");
+        } catch (PgProtocolException ex) {
+            assertThat(ex.getMessage(), is("missing parameter for placeholder number 1"));
+        }
+        try {
+            Conversions.bind("select where a = $2", stringList("@"));
+            fail("missing exception");
+        } catch (PgProtocolException ex) {
+            assertThat(ex.getMessage(), is("missing placeholder for parameter number 1"));
+        }
+    }
+
+    public List<String> stringList(String... vals) {
+        return Arrays.asList(vals);
     }
 
     public List<Byte> createByteList(int... vals) {

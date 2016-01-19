@@ -1,8 +1,10 @@
 package edu.purdue.jpgs.type;
 
+import edu.purdue.jpgs.PgProtocolException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Implements conversions between formats.
@@ -66,4 +68,59 @@ public class Conversions {
         return str.getBytes(charset);
     }
 
+    /**
+     * Binds a prepared statement to its actual values. This function takes care
+     * of the quoted strings.
+     *
+     * @param preparedStatement the SQL with place-holders in the form of $n,
+     * starting from 1.
+     * @param values the values to be inserted.
+     * @return the actual SQL.
+     * @throws edu.purdue.jpgs.PgProtocolException in case the number of
+     * place-holders is not the same of the provided values.
+     */
+    public static String bind(String preparedStatement, List<String> values) throws PgProtocolException {
+        int pos = 1;
+        for (String val : values) {
+            preparedStatement = bind(preparedStatement, pos, val);
+            if (preparedStatement == null) {
+                throw new PgProtocolException("missing placeholder for parameter number " + pos);
+            }
+            pos++;
+        }
+        //this checks that there are no placeholders leftover
+        if (bind(preparedStatement, pos, "") != null) {
+            throw new PgProtocolException("missing parameter for placeholder number " + pos);
+        }
+        return preparedStatement;
+    }
+
+    /**
+     * Substitutes the provided value in the specified position. Returns null in
+     * case the placeholder is missing and takes care of quoted text.
+     *
+     * @param stm the statement.
+     * @param pos the position counting from 1.
+     * @param value the value to insert.
+     * @return the statement with the value or null in case of error
+     */
+    private static String bind(String stm, int pos, String value) {
+        String placeholder = "^\\$" + pos; // this is a regex that matches strings beginning in $n
+        boolean quoted = false;
+        for (int i = 0; i < stm.length(); i++) {
+            char c = stm.charAt(i);
+            if (c == '\'') {
+                quoted = !quoted;
+            }
+            if (!quoted && c == '$') //Process char
+            {
+                String sub = stm.substring(i);
+                if (sub.matches(placeholder + "(\\D.*|$)")) { //regex matches string beginning in $n and followed by a non digit or end of string
+                    stm = stm.substring(0, i) + sub.replaceFirst(placeholder, value);
+                    return stm;
+                }
+            }
+        }
+        return null;
+    }
 }

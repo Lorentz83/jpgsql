@@ -494,6 +494,13 @@ public abstract class BaseConnection {
                         String portal = reader.readString();
                         String preparedStatement = reader.readString();
                         Short parameterNum = reader.readInt16();
+                        /* TODO The number of parameter format codes that follow (denoted C below).
+                         This can be zero to indicate that there are no parameters
+                         or that the parameters all use the default format (text);
+                         or one, in which case the specified format code is applied to all parameters;
+                         or it can equal the actual number of parameters.
+                         */
+
                         List<Short> parameterFormats = reader.readInt16List(parameterNum);
                         Short parameterValNum = reader.readInt16();
                         List<List<Byte>> parameters = new ArrayList<>();
@@ -502,6 +509,7 @@ public abstract class BaseConnection {
                             parameters.add(reader.readByteList(parLen));
                         }
                         List<Short> resultFormatCodes = reader.readInt16List(reader.readInt16());
+
                         Bind(portal, preparedStatement, parameterFormats, parameters, resultFormatCodes);
                         break;
                     }

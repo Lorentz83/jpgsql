@@ -21,6 +21,12 @@ import java.util.stream.Collectors;
  * class just implement a {@link DataProvider}, pass it to the constructor and
  * execute {@link #run() } to start the protocol execution. This class supports
  * only authentication with clear text password.
+ * <br/>
+ * Note: <ul>
+ * <li>Describe a prepared statement is not supported;</li>
+ * <li>Multiple queries in the same simple statement are not supported;</li>
+ * <li>Binary result format is not supported;</li>
+ * </ul>
  *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
@@ -30,7 +36,8 @@ public class SimpleConnection extends BaseConnection {
     private final int _processId, _secretKey;
     private final DataProvider _provider;
     private final Map<String, String> _preparedStatements;
-    private final Map<String, String> _portals;
+    private final Map<String, String> _portalStrings;
+    private final Map<String, DataProvider.QueryResult> _portalResults;
     private final BiConsumer<Integer, Integer> _cancelCallback;
 
     /**
@@ -51,7 +58,8 @@ public class SimpleConnection extends BaseConnection {
         _secretKey = (int) (Math.random() * Integer.MAX_VALUE);
         _provider = provider;
         _preparedStatements = new HashMap<>();
-        _portals = new HashMap<>();
+        _portalStrings = new HashMap<>();
+        _portalResults = new HashMap<>();
         _cancelCallback = cancelCallback;
         if (provider == null) {
             throw new NullPointerException();
@@ -121,7 +129,8 @@ public class SimpleConnection extends BaseConnection {
          * @todo the query string may contain multiple sql statements
          */
         _preparedStatements.remove(""); //erase the unnamed statement and portal
-        _portals.remove("");
+        _portalStrings.remove("");
+        _portalResults.remove("");
         query = query.trim();
         if (!respondToEmptyQuery(query)) {
             DataProvider.QueryResult table = _provider.getResult(query);
@@ -135,8 +144,8 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void Bind(String portalName, String preparedStatment, List<Short> parameterFormatCodes, List<List<Byte>> parameterValues, List<Short> resultFormatCodes) throws PgProtocolException, IOException {
-        String realQuery = _preparedStatements.get(preparedStatment);
-        if (realQuery == null) {
+        String statement = _preparedStatements.get(preparedStatment);
+        if (statement == null) {
             ErrorResponse(makeError("26000", "unknown statement name"));
             return;
         }
@@ -147,10 +156,10 @@ public class SimpleConnection extends BaseConnection {
             }
         }
 
+        List<String> vals = new ArrayList<>(parameterValues.size());
         for (int i = 0; i < parameterValues.size(); i++) {
             boolean binary = parameterFormatCodes.get(i) == 1;
             List<Byte> value = parameterValues.get(i);
-            String placeholder = "$" + (i + 1);
             String textVal;
             if (binary) {
                 if (value.size() > 4) {
@@ -170,24 +179,23 @@ public class SimpleConnection extends BaseConnection {
                 textVal = textVal.replace("'", "''");
             }
             textVal = "'" + textVal + "'";
-            realQuery = realQuery.replace(placeholder, textVal);
-
-            /**
-             * @todo this is a bug: here we don't have a parser, so it is
-             * difficult to distinguish when $n is a placeholder from when it is
-             * a string literal. Currently all the occurrences are replaced,
-             * potentially breaking the semantic of the query.
-             */
+            vals.add(textVal);
         }
-
-        if (portalName.equals("")) {
-            _portals.remove(""); //destroy the unnamed portal.
-        }
-        if (!_portals.containsKey(portalName)) {
-            _portals.put(portalName, realQuery);
-            BindComplete();
-        } else {
-            ErrorResponse(makeError("42602", "portal name already used"));
+        try {
+            String realQuery = Conversions.bind(statement, vals);
+            if (portalName.equals("")) {
+                _portalStrings.remove(""); //destroy the unnamed portal.
+                _portalResults.remove("");
+            }
+            if (!_portalStrings.containsKey(portalName)) {
+                _portalStrings.put(portalName, realQuery);
+                _portalResults.remove(portalName);
+                BindComplete();
+            } else {
+                ErrorResponse(makeError("42602", "portal name already used"));
+            }
+        } catch (PgProtocolException ex) {
+            ErrorResponse(makeError("03000", ex.getMessage()));
         }
     }
 
@@ -207,7 +215,8 @@ public class SimpleConnection extends BaseConnection {
                 _preparedStatements.remove(name); //!>@todo close the related _portals too
                 break;
             case 'P':
-                _portals.remove(name);
+                _portalStrings.remove(name);
+                _portalResults.remove(name);
                 break;
             default:
                 throw new PgProtocolException("Unrecognized close command " + what);
@@ -216,23 +225,20 @@ public class SimpleConnection extends BaseConnection {
     }
 
     @Override
-    protected void Execute(String portalName, int manRows) throws PgProtocolException, IOException {
-        //maxRows == 0 means fetch them all
-        String query = _portals.get(portalName);
+    protected void Execute(String portalName, int maxRows) throws PgProtocolException, IOException {
+        String query = _portalStrings.get(portalName);
         if (query == null) {
             ErrorResponse(makeError("42602", "unknown portal name"));
         } else {
             if (!respondToEmptyQuery(query)) {
-                DataProvider.QueryResult table = _provider.getResult(query);
-                sendQueryResult(table, manRows);
+                DataProvider.QueryResult result = _portalResults.get(portalName);
+                if (result == null) {
+                    result = _provider.getResult(query);
+                    _portalResults.put(query, result);
+                }
+                sendQueryResult(result, maxRows);
             }
         }
-        /**
-         * @todo currently the PortalSuspended message is not sent, because once
-         * the execute command is issued again another query is actually
-         * executed. The best way to suspend a portal may be decided once the
-         * dataProvider is implemented.
-         */
     }
 
     @Override
@@ -276,6 +282,9 @@ public class SimpleConnection extends BaseConnection {
 
     private void sendQueryResult(DataProvider.QueryResult table, int maxRows) throws PgProtocolException, IOException {
         switch (table.getType()) {
+            case ERROR:
+                ErrorResponse(makeError("42601", table.getErrorMessage()));
+                break;
             case CREATE:
                 CommandComplete("SELECT " + table.getRowCount());
                 break;
@@ -288,28 +297,23 @@ public class SimpleConnection extends BaseConnection {
             case UPDATE:
                 CommandComplete("UPDATE " + table.getRowCount());
                 break;
-            case SELECT: {
-                int rows = 0;
+            case SELECT:
+                if (maxRows == 0) { //maxRows == 0 means fetch them all
+                    maxRows = Integer.MAX_VALUE;
+                }
                 Iterator<List<String>> it = table.getRows();
-                while (it.hasNext()) {
+                for (int rowNum = 0; rowNum < maxRows && it.hasNext(); rowNum++) {
                     List<DataCellMsg> rawRow = it.next().stream().map(str -> {
                         return (str == null) ? new DataCellMsg() : new DataCellMsg(str);
                     }).collect(Collectors.toList());
-
                     DataRow(rawRow);
-                    if (++rows == maxRows) {
-                        //TODO enable the PortalSuspended() messages
-                        ErrorResponse(makeError("0A000", "PortalSuspend is not supported"));
-                        return;
-                    }
                 }
-                CommandComplete("SELECT " + table.getRowCount());
-            }
-            break;
-            case ERROR: {
-                ErrorResponse(makeError("42601", table.getErrorMessage()));
-            }
-            break;
+                if (it.hasNext()) {
+                    PortalSuspended();
+                } else {
+                    CommandComplete("SELECT " + table.getRowCount());
+                }
+                break;
             default:
                 throw new PgProtocolException("unknown query result ");
         }
@@ -322,13 +326,17 @@ public class SimpleConnection extends BaseConnection {
                 ErrorResponse(makeError("0A000", "unsupported feature: describe prepared statement"));
                 break;
             case 'P': // portal
-                String q = _portals.get(name);
+                String q = _portalStrings.get(name);
                 if (q == null) {
                     ErrorResponse(makeError("42602", "unknown portal name"));
                 } else {
-                    DataProvider.QueryResult table = _provider.getResult(q);
-                    if (table.getType() == DataProvider.QueryResult.Type.SELECT) {
-                        RowDescription(getTableHeader(table.getHeader()));
+                    DataProvider.QueryResult result = _portalResults.get(name);
+                    if (result == null) {
+                        result = _provider.getResult(q);
+                        _portalResults.put(q, result);
+                    }
+                    if (result.getType() == DataProvider.QueryResult.Type.SELECT) {
+                        RowDescription(getTableHeader(result.getHeader()));
                     } else {
                         NoData();
                     }

@@ -182,17 +182,49 @@ public class SimpleQuery_Queries_Test {
     }
 
     @Test
-    public void preparedStatementQuotedQuestionMark() throws Throwable {
-        when(_provider.getResult("delete from tbl where f1 = 'seriously?' and f2 = 'param'")).thenReturn(_table);
+    public void preparedStatementQuotedPlaceHolders() throws Throwable {
+        int deleted = 3;
+        when(_provider.getResult("delete from tbl where f1 = 'seriou$1y?' and f2 = 'param'")).thenReturn(_table);
         when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.DELETE);
-        when(_table.getRowCount()).thenReturn(3);
+        when(_table.getRowCount()).thenReturn(deleted);
 
         _strictMock.turnOn();
 
         setUpClient((Connection conn) -> {
-            PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = 'seriously?' and f2 = ?");
+            PreparedStatement stm = conn.prepareStatement("delete from tbl where f1 = 'seriou$1y?' and f2 = ?");
             stm.setString(1, "param");
-            stm.execute();
+            assertThat(stm.execute(), is(false));
+            assertThat(stm.getUpdateCount(), is(deleted));
+        });
+    }
+
+    @Test
+    public void preparedStatement_MaxRows() throws Throwable {
+        final String query = "select * from table";
+        List<String> header = Arrays.asList("col1");
+        Iterator<List<String>> rows = table(row("1"), row("2"));
+
+        when(_provider.getResult(query)).thenReturn(_table);
+        when(_table.getHeader()).thenReturn(header);
+        when(_table.getType()).thenReturn(DataProvider.QueryResult.Type.SELECT);
+
+        when(_table.getRows()).thenReturn(rows);
+        when(_table.getRowCount()).thenReturn(2);
+
+        _strictMock.turnOn();
+
+        setUpClient((Connection conn) -> {
+            PreparedStatement stm = conn.prepareStatement(query);
+            stm.setMaxRows(1);
+            ResultSet rs = stm.executeQuery();
+            assertThat(rs.next(), is(true));
+            assertThat(rs.getString(1), is("1"));
+            assertThat(rs.next(), is(false));
+
+            rs = stm.executeQuery();
+            assertThat(rs.next(), is(true));
+            assertThat(rs.getString(1), is("2"));
+            assertThat(rs.next(), is(false));
         });
     }
 
