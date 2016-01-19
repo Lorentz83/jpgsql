@@ -176,6 +176,7 @@ public class SimpleConnection extends BaseConnection {
                     ErrorResponse(makeError("42804", "Binary encoding not supported. Set 'binaryTransfer' to false when connecting through JDBC"));
                     return;
                 }
+                LOGGER.log(Level.WARNING, "The client provided data in a bynary format. It has been assumed to be an integer.");
                 textVal = Integer.toString(Conversions.toInt(value));
             } else {
                 textVal = Conversions.toString(value);
@@ -309,14 +310,30 @@ public class SimpleConnection extends BaseConnection {
                 }
                 break;
             default:
-                throw new PgProtocolException("unknown query result ");
+                LOGGER.log(Level.SEVERE, "unknown query result {0}", table.getType());
+                throw new PgProtocolException("unknown query result " + table.getType());
         }
     }
 
     @Override
     protected void Describe(char what, String name) throws PgProtocolException, IOException {
         switch (what) {
-            case 'S': // prepared statement
+            case 'S':
+                /* TODO implement this.
+                 * The Describe message (statement variant) specifies the name
+                 * of an existing prepared statement (or an empty string for the
+                 * unnamed prepared statement). The response is a
+                 * ParameterDescription message describing the parameters needed
+                 * by the statement, followed by a RowDescription message
+                 * describing the rows that will be returned when the statement
+                 * is eventually executed (or a NoData message if the statement
+                 * will not return rows). ErrorResponse is issued if there is no
+                 * such prepared statement. Note that since Bind has not yet
+                 * been issued, the formats to be used for returned columns are
+                 * not yet known to the backend; the format code fields in the
+                 * RowDescription message will be zeroes in this case.
+                 */
+                LOGGER.log(Level.SEVERE, "The client requested the unsupported 'describe prepared statement' function");
                 ErrorResponse(makeError("0A000", "unsupported feature: describe prepared statement"));
                 break;
             case 'P': // portal
