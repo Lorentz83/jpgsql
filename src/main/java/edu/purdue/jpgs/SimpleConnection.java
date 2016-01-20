@@ -401,4 +401,9 @@ public class SimpleConnection extends BaseConnection {
         }
         return false;
     }
+
+    @Override
+    protected int getSecretKey() {
+        return _secretKey;
+    }
 }

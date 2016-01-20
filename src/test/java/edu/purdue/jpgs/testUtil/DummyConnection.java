@@ -90,4 +90,9 @@ public class DummyConnection extends BaseConnection {
         fail("FunctionCall should not be called");
     }
 
+    @Override
+    protected int getSecretKey() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
 }
