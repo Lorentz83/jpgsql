@@ -54,12 +54,8 @@ public abstract class BaseConnection {
         }
     }
 
-    private PgWriter getWriter(char command) throws PgProtocolException, IOException {
-        try {
-            return new PgWriter(_socket.getOutputStream(), command);
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
-        }
+    private PgWriter getWriter(char command) throws IOException {
+        return new PgWriter(_socket.getOutputStream(), command);
     }
 
     protected void protocolStartUp() throws PgProtocolException, IOException {
