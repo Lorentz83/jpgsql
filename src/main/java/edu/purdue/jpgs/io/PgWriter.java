@@ -1,7 +1,6 @@
 package edu.purdue.jpgs.io;
 
-import edu.purdue.jpgs.PgProtocolException;
-import edu.purdue.jpgs.type.Conversions;
+import edu.purdue.jpgs.utils.Conversions;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -73,37 +72,33 @@ public class PgWriter implements AutoCloseable {
      * called, this writer is not valid anymore and any call of any add* method
      * will result in an exception.
      *
-     * @throws PgProtocolException
+     * @throws IOException if an I/O error occurs.
      */
-    public void flush() throws PgProtocolException {
+    public void flush() throws IOException {
         if (_buffer == null) {
             return;
         }
-        try {
-            int size = _buffer.len() + 4;
-            _buffer.prepend((byte) (size & 0xFF));
-            _buffer.prepend((byte) ((size >>> 8) & 0xFF));
-            _buffer.prepend((byte) ((size >>> 16) & 0xFF));
-            _buffer.prepend((byte) ((size >>> 24) & 0xFF));
+        int size = _buffer.len() + 4;
+        _buffer.prepend((byte) (size & 0xFF));
+        _buffer.prepend((byte) ((size >>> 8) & 0xFF));
+        _buffer.prepend((byte) ((size >>> 16) & 0xFF));
+        _buffer.prepend((byte) ((size >>> 24) & 0xFF));
 
-            if (_command != '\0') {
-                _buffer.prepend((byte) _command);
-            }
-            _os.write(_buffer.toArray());
-            _buffer = null;
-        } catch (IOException ex) {
-            throw new PgProtocolException(ex);
+        if (_command != '\0') {
+            _buffer.prepend((byte) _command);
         }
+        _os.write(_buffer.toArray());
+        _buffer = null;
     }
 
     /**
      * Sends the message over the network. It is a convenience method to call {@link #flush()
      * }.
      *
-     * @throws PgProtocolException
+     * @throws IOException if an I/O error occurs.
      */
     @Override
-    public void close() throws PgProtocolException {
+    public void close() throws IOException {
         flush();
     }
 }

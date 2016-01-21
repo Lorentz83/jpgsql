@@ -1,0 +1,34 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+    <head>
+        <title>jpgs - Java Postgres Server</title>
+    </head>
+    <body>
+        <p>
+            jpgs (short version of Java Postgres Server) is a java implementation of
+            the server side of the
+            <a href="http://www.postgresql.org/docs/9.4/static/protocol.html">Postgres Frontend/Backend Protocol</a>.
+        </p>
+        <p>
+            This means that with this library it is possible to create a server that
+            is binary compatible with Postgres 9.4.
+            Written mostly for research purposes, this project can be used to mock
+            a Postgres database for test purposes or to provide a standard and well known
+            interface to a new data container.
+        </p>
+        <p>
+            There are three big entry points to use this project:
+        </p>
+        <dl>
+            <dt>{@link edu.purdue.jpgs.BaseConnection}</dt>
+            <dd>contains the low level implementation of the protocol;</dd>
+            <dt>{@link edu.purdue.jpgs.SimpleConnection}</dt>
+            <dd>implements a simplified version of the protocol, abstracting by
+                many details and exposing a simpler interface to return results.
+            </dd>
+            <dt>{@link edu.purdue.jpgs.ConnectionPool}</dt>
+            <dd>implements a container that spawn new threads on incoming connections
+                and handles running instances of the BaseConnection</dd>
+        </dl>
+    </body>
+</html>

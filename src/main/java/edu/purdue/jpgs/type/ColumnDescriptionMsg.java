@@ -25,8 +25,10 @@ public class ColumnDescriptionMsg {
      * @param columnID the id of this column.
      * @param typeID the type id.
      * @param typeSize the type size or -1 if variable size.
-     * @param typeModifier
-     * @param formatCode
+     * @param typeModifier the type modifier. The meaning of the modifier is
+     * type-specific.
+     * @param formatCode the format code being used for the field. Currently
+     * will be zero (text) or one (binary).
      */
     public ColumnDescriptionMsg(String name, int tableID, short columnID, int typeID, short typeSize, int typeModifier, short formatCode) {
         this.name = name;
@@ -39,14 +41,12 @@ public class ColumnDescriptionMsg {
     }
 
     /**
-     * Creates a columnDescriptionMsg. Not linked to any table and in text
-     * format.
+     * Creates a columnDescriptionMsg. Not linked to any table and in variable
+     * size text format.
      *
      * @param name the column header.
-     * @param typeID the type id.
-     * @param typeSize the type size or -1 if variable size.
      */
-    public ColumnDescriptionMsg(String name, int typeID, short typeSize) {
-        this(name, 0, (short) 0, typeID, typeSize, 0, (short) 0);
+    public ColumnDescriptionMsg(String name) {
+        this(name, 0, (short) 0, 1043, (short) -1, 0, (short) -1);
     }
 }

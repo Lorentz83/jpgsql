@@ -1,5 +1,6 @@
 package edu.purdue.jpgs.type;
 
+import edu.purdue.jpgs.utils.Conversions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

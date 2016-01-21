@@ -34,7 +34,7 @@ public class PgReader {
      * Reads the command and initializes the message size.
      *
      * @return the command code.
-     * @throws IOException in case of any error reading the stream.
+     * @throws IOException if an I/O error occurs.
      */
     public char readCommand() throws IOException {
         char command = _in.readByte();
@@ -46,8 +46,9 @@ public class PgReader {
      * Reads an int32.
      *
      * @return the value
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
+     * @throws IOException if an I/O error occurs.
      */
     public int readInt32() throws PgProtocolException, IOException {
         decreaseSize(4);
@@ -58,8 +59,9 @@ public class PgReader {
      * Reads an int16.
      *
      * @return the value
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
+     * @throws IOException if an I/O error occurs.
      */
     public short readInt16() throws PgProtocolException, IOException {
         decreaseSize(2);
@@ -70,8 +72,9 @@ public class PgReader {
      * Reads an int8.
      *
      * @return the value
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
+     * @throws IOException if an I/O error occurs.
      */
     public byte readInt8() throws PgProtocolException, IOException {
         decreaseSize(1);
@@ -82,8 +85,9 @@ public class PgReader {
      * Reads a byte.
      *
      * @return the value
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
+     * @throws IOException if an I/O error occurs.
      */
     public char readByte() throws PgProtocolException, IOException {
         decreaseSize(1);
@@ -93,7 +97,7 @@ public class PgReader {
     /**
      * Discards all the bytes left in this command.
      *
-     * @throws IOException in case of any error reading the stream.
+     * @throws IOException if an I/O error occurs.
      */
     public void discardCommand() throws IOException {
         _in.skip(_size);
@@ -105,8 +109,9 @@ public class PgReader {
      *
      * @param howMany how many values read.
      * @return the list of int16.
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
+     * @throws IOException if an I/O error occurs.
      */
     public List<Short> readInt16List(int howMany) throws PgProtocolException, IOException {
         List<Short> ret = new ArrayList<>(howMany);
@@ -120,8 +125,9 @@ public class PgReader {
      * Reads null terminated string.
      *
      * @return the value.
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
+     * @throws IOException if an I/O error occurs.
      */
     public String readString() throws PgProtocolException, IOException {
         RawReader.CString str = _in.readString();
@@ -133,11 +139,14 @@ public class PgReader {
      * Reads all the remaining bytes of the command.
      *
      * @return the list of bytes.
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws IOException if an I/O error occurs.
      */
-    public List<Byte> readByteList() throws PgProtocolException, IOException {
-        return PgReader.this.readByteList(_size);
+    public List<Byte> readByteList() throws IOException {
+        try {
+            return PgReader.this.readByteList(_size);
+        } catch (PgProtocolException ex) {
+            throw new AssertionError("The buffer size has been checked, this error should not happen");
+        }
     }
 
     /**
@@ -145,8 +154,9 @@ public class PgReader {
      *
      * @param howMany the number of bytes to read.
      * @return the list of bytes.
-     * @throws PgProtocolException in case no bytes are left to read.
-     * @throws IOException in case of any error reading the stream.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
+     * @throws IOException if an I/O error occurs.
      */
     public List<Byte> readByteList(int howMany) throws PgProtocolException, IOException {
         List<Byte> ret = new ArrayList<>(howMany);
@@ -161,7 +171,8 @@ public class PgReader {
      * returns with success or throws and should be called at the end of every
      * command to be sure that the protocol is not out of sync.
      *
-     * @throws PgProtocolException if some bytes of the message are left unread.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
      */
     public void check() throws PgProtocolException {
         if (_size != 0) {
@@ -173,7 +184,8 @@ public class PgReader {
      * Decrease the counter of the bytes left to read for this command.
      *
      * @param bytes the number of bytes to decrease.
-     * @throws PgProtocolException if bytes is greater than the remaining bytes.
+     * @throws PgProtocolException if the remaining message length cannot
+     * contain the required data.
      */
     private void decreaseSize(int bytes) throws PgProtocolException {
         assert (bytes > 0);

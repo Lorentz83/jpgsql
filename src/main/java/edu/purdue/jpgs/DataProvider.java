@@ -7,10 +7,11 @@ import java.util.List;
  * Represents a data provider used by {@link SimpleConnection} to get the data
  * to be returned to the client. An instance is required for any connection. It
  * is guaranteed that the functions {@link #setUser(java.lang.String)
- * } and {@link #setPassword(java.lang.String) are called only once and in this order.
- * The function {@link #setPassword(java.lang.String) } is called only if setUser returned false.
- * Once the setup phase is completed and the user is authenticated, only
- * {@link #getResult(java.lang.String) } can be called.
+ * } and {@link #setPassword(java.lang.String)} are called only once and in this
+ * order. The function {@link #setPassword(java.lang.String) } is called only if
+ * setUser returned false. Once the setup phase is completed and the user is
+ * authenticated, only {@link #getResult(java.lang.String) } can be called.
+ *
  * @author Lorenzo Bossi [lbossi@purdue.edu]
  */
 public interface DataProvider {
@@ -26,7 +27,7 @@ public interface DataProvider {
     /**
      * Called specifying the database the client wants to use.
      *
-     * @param database
+     * @param database the database name.
      * @return true if the database exists and the current user can connect to
      * it.
      */

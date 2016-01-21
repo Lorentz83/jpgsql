@@ -4,7 +4,7 @@
     <groupId>edu.purdue.jpgs</groupId>
     <artifactId>jpgs</artifactId>
     <packaging>jar</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0-beta</version>
     <name>jpgs</name>
     <url>http://maven.apache.org</url>
     <dependencies>

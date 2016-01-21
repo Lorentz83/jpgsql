@@ -1,4 +1,4 @@
-package edu.purdue.jpgs.type;
+package edu.purdue.jpgs.utils;
 
 import edu.purdue.jpgs.PgProtocolException;
 import java.nio.charset.Charset;
@@ -13,6 +13,9 @@ import java.util.List;
  */
 public class Conversions {
 
+    /**
+     * Contains the standard charset used to communicate with the client.
+     */
     public static final Charset charset = StandardCharsets.UTF_8;
 
     /**
@@ -21,9 +24,8 @@ public class Conversions {
      *
      * @param value the byte list.
      * @return the string.
-     * @throws IllegalArgumentException
      */
-    public static String toString(Collection<Byte> value) throws IllegalArgumentException {
+    public static String toString(Collection<Byte> value) {
         byte[] arr = new byte[value.size()];
         int i = 0;
         for (byte val : value) {
@@ -38,8 +40,8 @@ public class Conversions {
      *
      * @param value the list of bytes.
      * @return the integer value.
-     * @throws IllegalArgumentException if value is longer than 4 bytes or is an
-     * empty list.
+     * @throws IllegalArgumentException if value contains more than 4 bytes or
+     * is an empty collection.
      */
     public static int toInt(Collection<Byte> value) throws IllegalArgumentException {
         if (value.size() > 4) {
@@ -76,8 +78,8 @@ public class Conversions {
      * starting from 1.
      * @param values the values to be inserted.
      * @return the actual SQL.
-     * @throws edu.purdue.jpgs.PgProtocolException in case the number of
-     * place-holders is not the same of the provided values.
+     * @throws PgProtocolException in case the number of place-holders is not
+     * the same of the provided values.
      */
     public static String bind(String preparedStatement, List<String> values) throws PgProtocolException {
         int pos = 1;

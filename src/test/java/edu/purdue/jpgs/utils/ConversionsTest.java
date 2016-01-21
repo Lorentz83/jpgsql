@@ -1,4 +1,4 @@
-package edu.purdue.jpgs.type;
+package edu.purdue.jpgs.utils;
 
 import edu.purdue.jpgs.PgProtocolException;
 import java.util.ArrayList;

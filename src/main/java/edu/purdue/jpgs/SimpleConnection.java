@@ -1,7 +1,7 @@
 package edu.purdue.jpgs;
 
 import edu.purdue.jpgs.type.ColumnDescriptionMsg;
-import edu.purdue.jpgs.type.Conversions;
+import edu.purdue.jpgs.utils.Conversions;
 import edu.purdue.jpgs.type.DataCellMsg;
 import static edu.purdue.jpgs.type.ErrorResponseMsg.makeError;
 import edu.purdue.jpgs.utils.Portal;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  * class just implement a {@link DataProvider}, pass it to the constructor and
  * execute {@link #run() } to start the protocol execution. This class supports
  * only authentication with clear text password.
- * <br/>
+ * <br>
  * Note: <ul>
  * <li>Describe a prepared statement is not supported;</li>
  * <li>Multiple queries in the same simple statement are not supported;</li>
@@ -51,7 +51,7 @@ public class SimpleConnection extends BaseConnection {
      * cancel the request killing the current request.
      * @param cancelCallback the function to be called when a cancel callback is
      * received. The parameters are the processId and the secretKey received.
-     * @throws IOException
+     * @throws IOException if an I/O error occurs.
      * @throws NullPointerException if any of the parameters is null.
      */
     public SimpleConnection(Socket socket, DataProvider provider, int pid, BiConsumer<Integer, Integer> cancelCallback) throws IOException, NullPointerException {
@@ -76,7 +76,7 @@ public class SimpleConnection extends BaseConnection {
      *
      * @param socket the socket the client is connected to.
      * @param provider the data provider.
-     * @throws IOException
+     * @throws IOException if an I/O error occurs.
      * @throws NullPointerException if any of the parameters is null.
      */
     public SimpleConnection(Socket socket, DataProvider provider) throws IOException {
@@ -248,6 +248,7 @@ public class SimpleConnection extends BaseConnection {
 
     @Override
     protected void Parse(String preparedStatment, String query, List<Integer> parametersType) throws PgProtocolException, IOException {
+        //TODO, we should check the parameter type here to avoid the problem of guessing it in the bind.
         if (preparedStatment.isEmpty()) {
             _stm.removeStatementCascade(preparedStatment);
         }
@@ -270,7 +271,7 @@ public class SimpleConnection extends BaseConnection {
     private List<ColumnDescriptionMsg> getTableHeader(List<String> headerNames) {
         List<ColumnDescriptionMsg> header = new ArrayList<>(headerNames.size());
         for (String n : headerNames) {
-            header.add(new ColumnDescriptionMsg(n, 1043, (short) -1));
+            header.add(new ColumnDescriptionMsg(n));
         }
         return header;
     }
@@ -384,22 +385,6 @@ public class SimpleConnection extends BaseConnection {
     protected void CopyDoneClientMsg() throws PgProtocolException, IOException {
         LOGGER.log(Level.SEVERE, "Copy operations are not implemented");
         throw new PgProtocolException("Not supported");
-    }
-
-    /**
-     * Closes the current connection if the current process id and secretKey
-     * matches the parameters.
-     *
-     * @param pid the provided process id.
-     * @param secretKey the provided secret key.
-     * @return true if the parameter match and the connection has been closed.
-     */
-    public boolean kill(int pid, int secretKey) {
-        if (_processId == pid && _secretKey == secretKey) {
-            kill();
-            return true;
-        }
-        return false;
     }
 
     @Override

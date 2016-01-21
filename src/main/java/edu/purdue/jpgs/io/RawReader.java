@@ -1,6 +1,6 @@
 package edu.purdue.jpgs.io;
 
-import edu.purdue.jpgs.type.Conversions;
+import edu.purdue.jpgs.utils.Conversions;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -51,7 +51,8 @@ public class RawReader {
      * Reads an int32
      *
      * @return the value.
-     * @throws IOException in case of network error or end of stream.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     public int readInt32() throws IOException {
         return (read() << 24) + (read() << 16) + (read() << 8) + read();
@@ -61,7 +62,8 @@ public class RawReader {
      * Reads an int16
      *
      * @return the value.
-     * @throws IOException in case of network error or end of stream.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     public short readInt16() throws IOException {
         return (short) ((read() << 8) + _in.read());
@@ -71,7 +73,8 @@ public class RawReader {
      * Reads an int8
      *
      * @return the value.
-     * @throws IOException in case of network error or end of stream.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     public byte readInt8() throws IOException {
         return (byte) read();
@@ -81,7 +84,8 @@ public class RawReader {
      * Reads a byte.
      *
      * @return the value.
-     * @throws IOException in case of network error or end of stream.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     public char readByte() throws IOException {
         return (char) read();
@@ -91,7 +95,8 @@ public class RawReader {
      * Reads a null terminated string.
      *
      * @return the string without the trailing null byte.
-     * @throws IOException in case of network error or end of stream.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     public CString readString() throws IOException {
         ArrayList<Byte> val = new ArrayList<>();
@@ -109,7 +114,8 @@ public class RawReader {
      *
      * @param len how many strings are to be read.
      * @return the list of strings.
-     * @throws IOException in case of network error or end of stream.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     public List<String> readStringList(int len) throws IOException {
         byte[] buf = new byte[len];
@@ -136,7 +142,8 @@ public class RawReader {
      * Returns the next byte from the stream or throws if the stream is empty.
      *
      * @return the next byte.
-     * @throws IOException in case of error of empty stream.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     private int read() throws IOException {
         int val = _in.read();
@@ -150,8 +157,8 @@ public class RawReader {
      * Discards some bytes from the stream.
      *
      * @param howMany the number of bytes to discard.
-     * @throws IOException if the stream ends before the specified number of
-     * bytes is discarded.
+     * @throws IOException if an I/O error occurs or the end of stream is
+     * reached.
      */
     void skip(long howMany) throws IOException {
         if (howMany != _in.skip(howMany)) {
