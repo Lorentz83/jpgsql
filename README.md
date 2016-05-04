@@ -1,8 +1,9 @@
-Java PostgreSQL Server (jpgs)
+Java PostgreSQL Server (jpgsql)
 =============================
 
-Java PostgreSQL Server (shortened in jpgs) is a library which provides
-a Java implementation of the server side PostgreSQL binary protocol.
+Java PostgreSQL Server (shortened in jpgsql) is a library which
+provides a Java implementation of the server side PostgreSQL binary
+protocol.
 
 This library makes easy to create a server which exposes an interface
 which is binary compatible with PostgreSQL.
@@ -22,7 +23,7 @@ give access to the lower level PostgreSQL API.
 
 Please, refer to the Javadoc for more information.
 
-Jpgs is released under the terms of MIT license.
+jpgsql is released under the terms of MIT license.
 
 Acknowledgment
 --------------
